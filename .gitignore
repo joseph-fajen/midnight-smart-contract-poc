@@ -18,3 +18,8 @@ contracts/managed/
 .env
 *.seed
 text.txt
+
+# Web deploy copied artifacts (regenerated from contracts/managed/)
+web-deploy/public/keys/
+web-deploy/public/zkir/
+web-deploy/public/contract/

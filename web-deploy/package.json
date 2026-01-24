@@ -1,0 +1,40 @@
+{
+  "name": "proof-of-authorship-web-deploy",
+  "version": "1.0.0",
+  "description": "Web deployment tool for Proof of Authorship contract using Lace wallet",
+  "type": "module",
+  "scripts": {
+    "predev": "mkdir -p public/keys public/zkir public/contract && cp -r ../contracts/managed/proof-of-authorship/keys/* public/keys/ 2>/dev/null || true && cp -r ../contracts/managed/proof-of-authorship/zkir/* public/zkir/ 2>/dev/null || true && cp -r ../contracts/managed/proof-of-authorship/contract/* public/contract/ 2>/dev/null || true",
+    "prebuild": "npm run predev",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@midnight-ntwrk/dapp-connector-api": "3.0.0",
+    "@midnight-ntwrk/midnight-js-contracts": "3.0.0-alpha.11",
+    "@midnight-ntwrk/midnight-js-fetch-zk-config-provider": "3.0.0-alpha.11",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "3.0.0-alpha.11",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "3.0.0-alpha.11",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "3.0.0-alpha.11",
+    "@midnight-ntwrk/midnight-js-network-id": "3.0.0-alpha.11",
+    "@midnight-ntwrk/midnight-js-types": "3.0.0-alpha.11",
+    "@midnight-ntwrk/compact-runtime": "0.11.0-rc.1",
+    "buffer": "^6.0.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vite-plugin-wasm": "^3.4.1",
+    "vite-plugin-top-level-await": "^1.5.0",
+    "@originjs/vite-plugin-commonjs": "^1.0.3",
+    "crypto-browserify": "^3.12.0",
+    "stream-browserify": "^3.0.0",
+    "process": "^0.11.10"
+  }
+}
