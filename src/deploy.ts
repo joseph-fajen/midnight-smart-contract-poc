@@ -25,14 +25,14 @@ import { type Wallet } from "@midnight-ntwrk/wallet-api";
 // @ts-ignore
 globalThis.WebSocket = WebSocket;
 
-// Configure for Midnight Testnet
+// Configure for Midnight Preview Network
 setNetworkId(NetworkId.TestNet);
 
-// Testnet connection endpoints
-const TESTNET_CONFIG = {
-  indexer: "https://indexer.testnet-02.midnight.network/api/v1/graphql",
-  indexerWS: "wss://indexer.testnet-02.midnight.network/api/v1/graphql/ws",
-  node: "https://rpc.testnet-02.midnight.network",
+// Preview network connection endpoints (used by Lace Midnight Preview)
+const PREVIEW_CONFIG = {
+  indexer: "https://indexer.preview.midnight.network/api/v3/graphql",
+  indexerWS: "wss://indexer.preview.midnight.network/api/v3/graphql/ws",
+  node: "https://rpc.preview.midnight.network",
   proofServer: "http://127.0.0.1:6300",
 };
 
@@ -114,10 +114,10 @@ async function main() {
     // Build wallet
     console.log("Building wallet...");
     const wallet = await WalletBuilder.buildFromSeed(
-      TESTNET_CONFIG.indexer,
-      TESTNET_CONFIG.indexerWS,
-      TESTNET_CONFIG.proofServer,
-      TESTNET_CONFIG.node,
+      PREVIEW_CONFIG.indexer,
+      PREVIEW_CONFIG.indexerWS,
+      PREVIEW_CONFIG.proofServer,
+      PREVIEW_CONFIG.node,
       walletSeed,
       getZswapNetworkId(),
       "warn"
@@ -193,11 +193,11 @@ async function main() {
         privateStateStoreName: "proof-of-authorship-state",
       }),
       publicDataProvider: indexerPublicDataProvider(
-        TESTNET_CONFIG.indexer,
-        TESTNET_CONFIG.indexerWS
+        PREVIEW_CONFIG.indexer,
+        PREVIEW_CONFIG.indexerWS
       ),
       zkConfigProvider: new NodeZkConfigProvider(zkConfigPath),
-      proofProvider: httpClientProofProvider(TESTNET_CONFIG.proofServer),
+      proofProvider: httpClientProofProvider(PREVIEW_CONFIG.proofServer),
       walletProvider: walletProvider,
       midnightProvider: walletProvider,
     };

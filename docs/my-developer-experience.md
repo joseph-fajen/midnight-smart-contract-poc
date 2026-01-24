@@ -109,6 +109,37 @@ curl -I https://indexer.testnet-02.midnight.network/
 
 Both returned HTTP 503, confirming this was a server-side issue rather than rate-limiting on my end.
 
+**Step 8: Network Discovery - Preview vs Testnet-02**
+
+The team member asked if I was using a Lace wallet. This led to installing **Lace Midnight Preview** (a separate Chrome extension from the regular Cardano Lace wallet).
+
+During Lace Midnight Preview setup, I discovered a critical distinction: the wallet connects to the **Preview** network, not **testnet-02**. When I asked Discord about this, they confirmed: "Preview in the Lace wallet is not the same as testnet-02; they are different networks."
+
+The Lace configuration screen revealed the Preview network endpoints:
+
+| Service | Preview Endpoint |
+|---------|------------------|
+| RPC Node | `https://rpc.preview.midnight.network` |
+| Indexer | `https://indexer.preview.midnight.network/api/v3/graphql` |
+
+Testing confirmed the Preview endpoints work:
+
+```bash
+# Preview Indexer - SUCCESS
+curl "https://indexer.preview.midnight.network/api/v3/graphql" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ __typename }"}'
+# Returns: {"data":{"__typename":"Query"}} (HTTP 200)
+
+# Preview RPC - SUCCESS
+curl -X POST "https://rpc.preview.midnight.network" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"chain_getBlockHash","params":[0],"id":1}'
+# Returns: {"jsonrpc":"2.0","id":1,"result":"0x3acf6189..."}
+```
+
+This was a breakthrough: the documentation I followed pointed to testnet-02, but the recommended path (using Lace Midnight Preview) requires the Preview network.
+
 ## Findings
 
 ### What Works
@@ -119,7 +150,13 @@ Both returned HTTP 503, confirming this was a server-side issue rather than rate
 - Wallet seed generation and restoration
 
 ### What Was the Issue
-The Midnight testnet indexer service was experiencing a 503 outage. This is infrastructure-level, not a code issue. The indexer is required for:
+Two compounding issues:
+
+1. **Testnet-02 indexer outage** - The indexer at `indexer.testnet-02.midnight.network` was returning 503 errors. This is infrastructure-level, not a code issue.
+
+2. **Wrong network** - More fundamentally, the documentation I followed pointed to testnet-02, but the current recommended approach using Lace Midnight Preview requires the **Preview** network with different endpoints entirely.
+
+The indexer is required for:
 - Initial wallet syncing
 - Reading chain state
 - Contract discovery
@@ -146,16 +183,67 @@ Updated dependencies to match documented testnet setup:
 
 5. **The indexer is critical** - Unlike some blockchains where you can interact directly with nodes, Midnight's wallet SDK requires the indexer for synchronization.
 
+6. **Multiple networks exist** - Midnight has multiple networks (testnet-02, Preview, etc.). Documentation may reference different networks. The Lace Midnight Preview wallet specifically uses the Preview network, which has its own endpoints. Always verify which network your tools expect.
+
+7. **Lace Midnight Preview is separate** - The Midnight-enabled Lace wallet is a separate Chrome extension from the regular Cardano Lace wallet. It uses a 24-word mnemonic (not a hex seed) and connects to the Preview network by default.
+
 ## Resolution
 
-*Pending* - Monitoring indexer status. Will update once deployment completes.
+*In Progress* - Discovered that the correct network is Preview, not testnet-02. Updating deployment configuration to use Preview network endpoints.
 
 ## Next Steps
 
-1. Wait for indexer service to recover
-2. Re-run `npm run deploy` with existing wallet seed
-3. Verify contract deployment via indexer query
-4. Document successful deployment in `deployment.json`
+1. Update `deploy.ts` to use Preview network endpoints
+2. Configure wallet integration with Lace Midnight Preview (24-word mnemonic)
+3. Fund wallet with tDUST via Preview network faucet
+4. Re-run deployment
+5. Document successful deployment in `deployment.json`
+
+---
+
+## Next Session: Picking Up Where We Left Off
+
+### Current State
+- **Contract**: Compiled and ready in `contracts/managed/proof-of-authorship/`
+- **Deploy script**: Updated to use Preview network endpoints (not testnet-02)
+- **Proof server**: Docker container running on localhost:6300
+- **Lace Midnight Preview**: Installed as Chrome extension, wallet created with 24-word mnemonic
+
+### What Works
+- Preview network indexer responds: `https://indexer.preview.midnight.network/api/v3/graphql`
+- Preview network RPC responds: `https://rpc.preview.midnight.network`
+- Contract compiles with `npm run compile`
+- TypeScript builds with `npm run build`
+
+### Immediate Next Step
+**Resolve mnemonic vs hex seed issue**: The deploy script uses `WalletBuilder.buildFromSeed()` which expects a 64-character hex seed. Lace Midnight Preview uses a 24-word BIP-39 mnemonic. Options to investigate:
+
+1. Check if Lace can export a hex seed (look in wallet settings)
+2. Convert mnemonic to hex seed using a BIP-39 library
+3. Check Midnight SDK for a mnemonic-based wallet builder method
+
+### Commands to Resume
+```bash
+# Verify proof server is running
+curl -s http://127.0.0.1:6300 && echo "Proof server OK"
+
+# Test Preview indexer
+curl -s "https://indexer.preview.midnight.network/api/v3/graphql" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ __typename }"}'
+
+# Build and deploy (once seed issue is resolved)
+npm run build
+npm run deploy
+```
+
+### Key Files
+- `src/deploy.ts` - Deployment script (updated for Preview network)
+- `contracts/proof-of-authorship.compact` - Smart contract source
+- `docs/my-developer-experience.md` - This document
+
+### Discord Contact
+A team member has been helping troubleshoot. If issues persist, continue the Discord conversation about Preview network deployment.
 
 ---
 
