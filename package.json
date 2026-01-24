@@ -6,7 +6,8 @@
   "scripts": {
     "compile": "compact compile contracts/proof-of-authorship.compact contracts/managed/proof-of-authorship",
     "build": "tsc",
-    "deploy": "node dist/deploy.js"
+    "deploy": "node dist/deploy.js",
+    "verify-mnemonic": "node dist/verify-mnemonic.js"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "^0.8.1",
@@ -15,12 +16,13 @@
     "@midnight-ntwrk/midnight-js-http-client-proof-provider": "2.0.2",
     "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "2.0.2",
     "@midnight-ntwrk/midnight-js-level-private-state-provider": "2.0.2",
-    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "2.0.2",
     "@midnight-ntwrk/midnight-js-network-id": "2.0.2",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "2.0.2",
     "@midnight-ntwrk/midnight-js-types": "2.0.2",
     "@midnight-ntwrk/midnight-js-utils": "2.0.2",
     "@midnight-ntwrk/wallet": "5.0.0",
     "@midnight-ntwrk/wallet-api": "5.0.0",
+    "@midnight-ntwrk/wallet-sdk-hd": "^2.0.0",
     "@midnight-ntwrk/zswap": "^4.0.0",
     "ws": "^8.18.0"
   },

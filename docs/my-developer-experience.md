@@ -140,38 +140,162 @@ curl -X POST "https://rpc.preview.midnight.network" \
 
 This was a breakthrough: the documentation I followed pointed to testnet-02, but the recommended path (using Lace Midnight Preview) requires the Preview network.
 
+---
+
+### 2026-01-24: Deep Dive into Wallet/Seed Integration
+
+After updating the deploy script to use Preview network endpoints, the next challenge was integrating with the Lace Midnight Preview wallet.
+
+#### The Mnemonic vs Hex Seed Problem
+
+**Initial Discovery**
+
+The Midnight SDK's `WalletBuilder.build()` expects a hex-encoded seed:
+```typescript
+WalletBuilder.build(indexer, indexerWS, proofServer, node, seedHex, networkId, logLevel)
+```
+
+But Lace Midnight Preview uses a 24-word BIP-39 mnemonic. The Discord contact suggested exporting the Lace wallet's seed for CLI deployment, implying there should be a way to derive the same wallet.
+
+**Research: How Does Midnight Expect Seeds?**
+
+Installed `@midnight-ntwrk/wallet-sdk-hd` package (version 2.0.0) which provides HD wallet support. Key findings:
+
+1. The SDK expects a 32-byte (64-character hex) seed
+2. The `generateRandomSeed()` function produces 32 random bytes
+3. There's no built-in `mnemonicToSeed` function exported
+
+The SDK internally uses `@scure/bip39` for mnemonic validation.
+
+#### Derivation Method Experiments
+
+Created `src/verify-mnemonic.ts` to test different seed derivation approaches:
+
+**Method 1: Raw Entropy**
+
+BIP-39 24-word mnemonic = 256 bits of entropy = 32 bytes
+
+```typescript
+import { mnemonicToEntropy } from "@scure/bip39";
+const entropy = mnemonicToEntropy(mnemonic, wordlist);
+// Use as seed directly
+```
+
+Result: SDK accepted it (32 bytes), but address didn't match Lace.
+
+**Method 2: Icarus/CIP-3 Derivation**
+
+Cardano/Midnight uses Icarus-style key derivation (SLIP-0023):
+
+```typescript
+function deriveIcarusMasterKey(entropy: Uint8Array): Uint8Array {
+  // PBKDF2-HMAC-SHA512 with 4096 iterations
+  const derived = crypto.pbkdf2Sync(
+    Buffer.from(""),           // empty password
+    Buffer.from(entropy),       // entropy as salt
+    4096,                       // iterations
+    96,                         // 96 bytes output
+    "sha512"
+  );
+  // Apply Ed25519 bit tweaking
+  derived[0] &= 0xf8;
+  derived[31] = (derived[31] & 0x1f) | 0x40;
+  return derived.subarray(0, 32);  // first 32 bytes
+}
+```
+
+Result: Different address, still didn't match Lace.
+
+**Method 3: BIP-39 Standard Seed (first 32 bytes)**
+
+Standard BIP-39 produces 64 bytes via PBKDF2:
+
+```typescript
+import { mnemonicToSeedSync } from "@scure/bip39";
+const seed = mnemonicToSeedSync(mnemonic, "");  // 64 bytes
+const first32 = seed.subarray(0, 32);
+```
+
+Result: Different address, still didn't match Lace.
+
+**Method 4: BIP-39 Standard Seed (last 32 bytes)**
+
+```typescript
+const last32 = seed.subarray(32, 64);
+```
+
+Result: Different address, still didn't match Lace.
+
+#### The Network ID Mismatch Discovery
+
+After testing all 4 derivation methods, a pattern emerged:
+
+| Derived Addresses | Lace Addresses |
+|-------------------|----------------|
+| `mn_shield-addr_test1...` | `mn_shield-addr_preview1...` |
+| `mn_shield-addr_test1...` | `mn_addr_preview1...` |
+
+**Key Finding**: All SDK-derived addresses have `_test1` prefix, but Lace shows `_preview1` prefix.
+
+The SDK's `NetworkId` enum only has:
+- `Undeployed`
+- `DevNet`
+- `TestNet`
+- `MainNet`
+
+There is no `Preview` option. Using `NetworkId.TestNet` produces `test1` addresses, not `preview1`.
+
+This suggests a fundamental mismatch between:
+1. What the SDK thinks "TestNet" means (`test1` prefix)
+2. What the Preview network actually uses (`preview1` prefix)
+
+#### Current Blockers
+
+1. **Network ID Configuration**: The SDK doesn't have a `Preview` network ID that produces `preview1` addresses
+2. **Unknown Derivation**: Even if we solve the network ID, we haven't found the correct seed derivation that matches Lace
+
+#### Tools Created
+
+- `src/verify-mnemonic.ts` - Tests multiple derivation methods and compares addresses
+- `npm run verify-mnemonic` - Script to run the verification tool
+
+---
+
 ## Findings
 
 ### What Works
 - Contract compilation with Compact 0.2.0
 - TypeScript deployment script structure
 - Proof server (Docker) on localhost:6300
-- RPC node connectivity
-- Wallet seed generation and restoration
+- Preview network connectivity (indexer and RPC respond)
+- Wallet creation with SDK-generated seeds
+- Mnemonic validation and entropy extraction
+- Multiple seed derivation algorithms (Icarus, BIP-39, raw entropy)
 
-### What Was the Issue
-Two compounding issues:
+### Current Blockers
 
-1. **Testnet-02 indexer outage** - The indexer at `indexer.testnet-02.midnight.network` was returning 503 errors. This is infrastructure-level, not a code issue.
+1. **Network ID Mismatch**: SDK produces `_test1` addresses but Lace/Preview uses `_preview1` addresses. The SDK's `NetworkId.TestNet` doesn't map to Preview network's address format.
 
-2. **Wrong network** - More fundamentally, the documentation I followed pointed to testnet-02, but the current recommended approach using Lace Midnight Preview requires the **Preview** network with different endpoints entirely.
-
-The indexer is required for:
-- Initial wallet syncing
-- Reading chain state
-- Contract discovery
-
-Without it, deployment cannot proceed - this is by design, not a limitation of my implementation.
+2. **Seed Derivation Unknown**: Tested 4 different derivation methods from mnemonic to seed; none produce addresses matching Lace wallet.
 
 ### SDK Version Alignment
 
-Updated dependencies to match documented testnet setup:
+Current dependencies (aligned with Preview network):
 
-| Package | Before | After |
-|---------|--------|-------|
-| @midnight-ntwrk/compact-runtime | 0.9.0 | 0.8.1 |
+| Package | Version |
+|---------|---------|
+| @midnight-ntwrk/wallet | 5.0.0 |
+| @midnight-ntwrk/wallet-sdk-hd | 2.0.0 |
+| @midnight-ntwrk/midnight-js-* | 2.0.2 |
+| @midnight-ntwrk/compact-runtime | 0.8.1 |
+| @midnight-ntwrk/ledger | 4.0.0 |
+| @midnight-ntwrk/zswap | 4.0.0 |
+
+---
 
 ## Lessons Learned
+
+### From Initial Troubleshooting (Session 1)
 
 1. **Test endpoints independently** - When deployment fails, isolate which service is actually down. The RPC node and indexer are separate services.
 
@@ -179,71 +303,130 @@ Updated dependencies to match documented testnet setup:
 
 3. **Version alignment matters** - Even if newer versions exist, stick with the documented compatibility matrix for testnet.
 
-4. **Community is a resource** - Discord provided quick confirmation that the issue was infrastructure-side, saving further debugging time. A team member also proactively reached out to escalate the issue internally - a positive sign for developer support.
+4. **Community is a resource** - Discord provided quick confirmation that the issue was infrastructure-side, saving further debugging time. A team member also proactively reached out to escalate the issue internally.
 
 5. **The indexer is critical** - Unlike some blockchains where you can interact directly with nodes, Midnight's wallet SDK requires the indexer for synchronization.
 
-6. **Multiple networks exist** - Midnight has multiple networks (testnet-02, Preview, etc.). Documentation may reference different networks. The Lace Midnight Preview wallet specifically uses the Preview network, which has its own endpoints. Always verify which network your tools expect.
+6. **Multiple networks exist** - Midnight has multiple networks (testnet-02, Preview, etc.). The Lace Midnight Preview wallet specifically uses the Preview network.
 
-7. **Lace Midnight Preview is separate** - The Midnight-enabled Lace wallet is a separate Chrome extension from the regular Cardano Lace wallet. It uses a 24-word mnemonic (not a hex seed) and connects to the Preview network by default.
+7. **Lace Midnight Preview is separate** - The Midnight-enabled Lace wallet is a separate Chrome extension from the regular Cardano Lace wallet.
+
+### From Wallet Integration (Session 2)
+
+8. **Seed format matters** - The SDK expects 32-byte hex seeds, not 24-word mnemonics or 64-byte BIP-39 seeds.
+
+9. **Cardano heritage affects Midnight** - Midnight inherits from Cardano, which uses Icarus-style key derivation (PBKDF2 with 4096 iterations) rather than standard BIP-39 PBKDF2 (2048 iterations).
+
+10. **Network IDs affect address encoding** - Midnight addresses include network identifiers in their Bech32m encoding (`test1`, `preview1`, etc.). The SDK's network configuration must match the target network.
+
+11. **Address format is revealing** - The address prefix (e.g., `mn_shield-addr_preview1`) encodes: network type (preview), address type (shielded), and is useful for debugging integration issues.
+
+12. **Build verification tools** - Creating `verify-mnemonic.ts` to test derivation methods systematically was more efficient than trial-and-error in the deployment script.
+
+13. **Document negative results** - Recording what DIDN'T work (4 derivation methods) is as valuable as what did work.
+
+---
 
 ## Resolution
 
-*In Progress* - Discovered that the correct network is Preview, not testnet-02. Updating deployment configuration to use Preview network endpoints.
+*In Progress* - Wallet integration with Lace Midnight Preview remains unsolved due to network ID mismatch and unknown seed derivation.
 
-## Next Steps
+**Two paths forward:**
 
-1. Update `deploy.ts` to use Preview network endpoints
-2. Configure wallet integration with Lace Midnight Preview (24-word mnemonic)
-3. Fund wallet with tDUST via Preview network faucet
-4. Re-run deployment
-5. Document successful deployment in `deployment.json`
+1. **Ask Discord contact about specific issue**: "SDK produces `_test1` addresses but Lace shows `_preview1`. Is there a different NetworkId or SDK configuration for Preview network?"
+
+2. **Use fresh CLI-generated wallet**: Bypass Lace integration entirely; generate a new seed with the deploy script and fund it via the Preview faucet.
 
 ---
 
 ## Next Session: Picking Up Where We Left Off
 
 ### Current State
+
 - **Contract**: Compiled and ready in `contracts/managed/proof-of-authorship/`
-- **Deploy script**: Updated to use Preview network endpoints (not testnet-02)
-- **Proof server**: Docker container running on localhost:6300
-- **Lace Midnight Preview**: Installed as Chrome extension, wallet created with 24-word mnemonic
+- **Deploy script**: Updated for Preview network endpoints
+- **Proof server**: Docker container running on localhost:6300 (up 20+ hours)
+- **Lace Midnight Preview**: Installed, wallet created, but integration blocked
+- **Verification tool**: `src/verify-mnemonic.ts` tests multiple derivation methods
 
 ### What Works
-- Preview network indexer responds: `https://indexer.preview.midnight.network/api/v3/graphql`
-- Preview network RPC responds: `https://rpc.preview.midnight.network`
-- Contract compiles with `npm run compile`
-- TypeScript builds with `npm run build`
 
-### Immediate Next Step
-**Resolve mnemonic vs hex seed issue**: The deploy script uses `WalletBuilder.buildFromSeed()` which expects a 64-character hex seed. Lace Midnight Preview uses a 24-word BIP-39 mnemonic. Options to investigate:
+- Preview network indexer: `https://indexer.preview.midnight.network/api/v3/graphql`
+- Preview network RPC: `https://rpc.preview.midnight.network`
+- Contract compilation: `npm run compile`
+- TypeScript build: `npm run build`
+- Wallet creation with hex seeds
+- Mnemonic validation and derivation (addresses don't match Lace)
 
-1. Check if Lace can export a hex seed (look in wallet settings)
-2. Convert mnemonic to hex seed using a BIP-39 library
-3. Check Midnight SDK for a mnemonic-based wallet builder method
+### Immediate Blocker
+
+**Network ID / Address Prefix Mismatch**:
+- SDK with `NetworkId.TestNet` produces: `mn_shield-addr_test1...`
+- Lace Midnight Preview shows: `mn_shield-addr_preview1...`
+
+This affects all derivation methods - even if we find the correct seed, the address format won't match.
+
+### Recommended Next Steps
+
+**Option A: Consult Discord Contact (Preferred)**
+
+Message Amy.ether with this specific question:
+
+> "I tried exporting my Lace mnemonic and using it with WalletBuilder.build(). The derivation works (no errors), but the addresses have `_test1` prefix while my Lace shows `_preview1` prefix. I'm using `setNetworkId(NetworkId.TestNet)` - is there a different network ID for Preview? Or a different SDK configuration needed?"
+
+This is a precise technical question they can likely answer quickly.
+
+**Option B: Use Fresh CLI Wallet (Fallback)**
+
+If Lace integration remains blocked:
+
+1. Run `npm run deploy`
+2. Answer `n` when asked about existing seed
+3. Save the generated seed
+4. Fund via https://faucet.preview.midnight.network/
+5. Proceed with deployment
+
+This bypasses Lace but achieves the deployment goal.
 
 ### Commands to Resume
+
 ```bash
 # Verify proof server is running
-curl -s http://127.0.0.1:6300 && echo "Proof server OK"
+docker ps | grep proof-server
 
-# Test Preview indexer
+# Quick connectivity test
 curl -s "https://indexer.preview.midnight.network/api/v3/graphql" \
   -H "Content-Type: application/json" \
   -d '{"query":"{ __typename }"}'
 
-# Build and deploy (once seed issue is resolved)
+# Test derivation methods (if continuing Lace integration)
+npm run verify-mnemonic
+
+# Build and deploy (once wallet issue resolved)
 npm run build
 npm run deploy
 ```
 
 ### Key Files
-- `src/deploy.ts` - Deployment script (updated for Preview network)
-- `contracts/proof-of-authorship.compact` - Smart contract source
-- `docs/my-developer-experience.md` - This document
 
-### Discord Contact
-A team member has been helping troubleshoot. If issues persist, continue the Discord conversation about Preview network deployment.
+| File | Purpose |
+|------|---------|
+| `src/deploy.ts` | Main deployment script (Preview network configured) |
+| `src/verify-mnemonic.ts` | Mnemonic derivation test tool |
+| `contracts/proof-of-authorship.compact` | Smart contract source |
+| `docs/my-developer-experience.md` | This document |
+
+### Open Questions for Discord
+
+1. Is there a `NetworkId.Preview` or equivalent for Preview network addresses?
+2. What seed derivation does Lace Midnight Preview use internally?
+3. Is there SDK documentation for CLI + Lace wallet integration?
+
+### Lace Wallet Details (for reference)
+
+- **Shielded address**: `mn_shield-addr_preview16ghcqxr57xlzmk37nd6r26yyl4jm4kd9wa8cvnqh7wfwcugsa3cq4kcgyfys7n60czywmvnf3sgackrqzmlu7selrxw9qrcfkkdx5qsx0xvs7`
+- **Unshielded address**: `mn_addr_preview1zw853n0463w08e5ad9uneu09dpa58g96s7ejjwqrvj9k06xk6t8qhw2js7`
+- **Balance**: 0 tDUST (unfunded)
 
 ---
 
