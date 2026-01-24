@@ -4,6 +4,11 @@
  * This script tries multiple derivation methods to find one that matches
  * your Lace wallet address.
  *
+ * Key discovery from Midnight docs:
+ * - Midnight uses HD path: m/44'/2400'/account'/role/index
+ * - Role 3 (Roles.Zswap) is used for wallet seed derivation
+ * - The @midnight-ntwrk/wallet-sdk-hd package handles this
+ *
  * Usage: npm run verify-mnemonic
  */
 
@@ -51,6 +56,41 @@ function deriveIcarusMasterKey(entropy: Uint8Array, password: string = ""): Uint
   derived[0] &= 0xf8;
   derived[31] = (derived[31] & 0x1f) | 0x40;
   return new Uint8Array(derived.subarray(0, 32));
+}
+
+/**
+ * Midnight HD wallet derivation (from Midnight docs)
+ * Path: m/44'/2400'/account'/role/index
+ * Uses Roles.Zswap (role 3) for wallet seed
+ */
+function deriveMidnightWalletSeed(bip39Seed: Uint8Array): string | null {
+  try {
+    const generatedWallet = HDWallet.fromSeed(bip39Seed);
+
+    if (generatedWallet.type !== "seedOk") {
+      console.log(`  HDWallet.fromSeed failed: ${generatedWallet.type}`);
+      return null;
+    }
+
+    // Derive using account 0, role Zswap (3), index 0
+    // This follows the documented path: m/44'/2400'/0'/3/0
+    const zswapKey = generatedWallet.hdWallet
+      .selectAccount(0)
+      .selectRole(Roles.Zswap)
+      .deriveKeyAt(0);
+
+    if (zswapKey.type === "keyDerived") {
+      // The derived key is the wallet seed to use with WalletBuilder
+      return Buffer.from(zswapKey.key).toString("hex");
+    } else {
+      console.log(`  Key derivation failed: ${zswapKey.type}`);
+      return null;
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.log(`  HDWallet error: ${msg}`);
+    return null;
+  }
 }
 
 async function testSeed(seedHex: string, label: string): Promise<string | null> {
@@ -163,6 +203,29 @@ async function main() {
       address: await testSeed(bip39Last32, "BIP-39 Seed last 32 bytes")
     });
 
+    // Method 5: Midnight HD Derivation (RECOMMENDED - from Midnight docs)
+    // Path: m/44'/2400'/0'/3/0 (account 0, role Zswap, index 0)
+    console.log("\n===========================================");
+    console.log("  Method 5: Midnight HD Derivation (Recommended)");
+    console.log("  Path: m/44'/2400'/0'/3/0 (Roles.Zswap)");
+    console.log("===========================================");
+
+    const midnightSeed = deriveMidnightWalletSeed(bip39Seed);
+    if (midnightSeed) {
+      results.push({
+        label: "5. Midnight HD (m/44'/2400'/0'/3/0)",
+        seed: midnightSeed,
+        address: await testSeed(midnightSeed, "Midnight HD Derivation (Roles.Zswap)")
+      });
+    } else {
+      console.log("\n  Method 5 failed - could not derive Midnight wallet seed");
+      results.push({
+        label: "5. Midnight HD (m/44'/2400'/0'/3/0)",
+        seed: "",
+        address: null
+      });
+    }
+
     // Summary
     console.log("\n===========================================");
     console.log("  SUMMARY - Compare with your Lace addresses");
@@ -177,21 +240,33 @@ async function main() {
     }
 
     console.log("-------------------------------------------");
-    console.log("Enter the number (1-4) that matches your Lace address,");
+    console.log("Enter the number (1-5) that matches your Lace address,");
     console.log("or 0 if none match:\n");
+    console.log("NOTE: Method 5 (Midnight HD) is the documented approach");
+    console.log("and most likely to match your Lace wallet.\n");
 
     const choice = await rl.question("Choice: ");
     const choiceNum = parseInt(choice, 10);
 
-    if (choiceNum >= 1 && choiceNum <= 4) {
+    if (choiceNum >= 1 && choiceNum <= 5) {
       const selected = results[choiceNum - 1];
-      console.log(`\n===========================================`);
-      console.log(`  SUCCESS! Use this seed for deployment:`);
-      console.log(`===========================================`);
-      console.log(`\n${selected.seed}\n`);
+      if (selected.seed) {
+        console.log(`\n===========================================`);
+        console.log(`  SUCCESS! Use this seed for deployment:`);
+        console.log(`===========================================`);
+        console.log(`\n${selected.seed}\n`);
+
+        if (choiceNum === 5) {
+          console.log("This is the Midnight HD derivation method.");
+          console.log("You can update deploy.ts to use this derivation");
+          console.log("from your mnemonic automatically.");
+        }
+      } else {
+        console.log("\nThis method failed to derive a seed.");
+      }
     } else {
       console.log("\nNo match found. The derivation method Lace uses");
-      console.log("may be different from these standard approaches.");
+      console.log("may be different from these approaches.");
       console.log("\nConsider asking your Discord contact for specifics");
       console.log("on how to export/derive the seed for CLI use.");
     }

@@ -261,6 +261,347 @@ This suggests a fundamental mismatch between:
 
 ---
 
+### 2026-01-24: Discord Clarification on Bech32 Prefixes
+
+Asked Amy.ether on Discord about the `_test1` vs `_preview1` address prefix mismatch. Her response clarified a key misconception:
+
+> "Preview is not a different NetworkId — it's still Testnet (0). But Lace's Preview network uses a different bech32 address prefix and genesis config than 'legacy testnet', and most SDKs default to the old testnet environment, not Preview."
+
+**Key Insight**: The issue is NOT about `NetworkId` at all. Both testnet-02 and Preview use `NetworkId.TestNet` (value 0). The difference is:
+
+1. **Bech32 address prefix** - Preview uses `_preview1`, legacy testnet uses `_test1`
+2. **Genesis configuration** - Different chain genesis between the networks
+
+The SDK defaults to legacy testnet bech32 encoding, which produces `addr_test1...` style addresses, while Lace's Preview network expects `addr_preview1...` prefixes.
+
+Amy indicated she would provide specific configuration details for using Preview's bech32 scheme with the SDK. Awaiting that information.
+
+---
+
+### 2026-01-24: Testing Cardano Address Derivation
+
+Amy.ether provided a suggestion to use the `cardano-address` CLI tool to derive keys from the Lace mnemonic:
+
+```bash
+echo "word1 word2 word3 ... word24" | cardano-address key from-recovery-phrase Shelley > root.prv
+```
+
+With derivation paths:
+- `m/1852'/1815'/0'/0/0` (payment)
+- `m/1852'/1815'/0'/2/0` (stake)
+
+#### Setup
+
+Downloaded and installed `cardano-address` v4.0.2 from the official IntersectMBO/cardano-addresses repository (the official Cardano Foundation tool). Created a local script (`scripts/test-cardano-derivation.sh`) to safely test derivation without exposing the mnemonic.
+
+#### Results
+
+The derivation worked correctly, producing valid Cardano addresses:
+
+**Derived from mnemonic (standard Cardano path):**
+```
+Testnet Payment: addr_test1vqkqxqvvpqdjgwmyf0ugu7urpujywd84ts6js8kraaxgddsz0xclz
+Testnet Stake:   stake_test1uzpf8tx84kujssrudx6xnxlnyttpszz97yaj5dkdtzme3us3u2mry
+```
+
+**Lace Midnight Preview addresses:**
+```
+Unshielded: mn_addr_preview1zw853n0463w08e5ad9uneu09dpa58g96s7ejjwqrvj9k06xk6t8qhw2js7
+Shielded:   mn_shield-addr_preview16ghcqxr57xlzmk37nd6r26yyl4jm4kd9wa8cvnqh7wfwcugsa3cq4kcgyfys7n60czywmvnf3sgackrqzmlu7selrxw9qrcfkkdx5qsx0xvs7
+```
+
+#### Analysis
+
+**The addresses don't match - and it's not just a prefix difference.**
+
+The Bech32-encoded data portions are entirely different, meaning the underlying public keys are different. This rules out the theory that it's just a bech32 prefix configuration issue.
+
+**Key findings:**
+
+1. **Standard Cardano derivation doesn't produce Midnight keys** - The path `m/1852'/1815'/0'/0/0` (CIP-1852 standard) produces Cardano keys, not Midnight keys.
+
+2. **Different key material entirely** - If it were just a prefix issue, the data after the prefix would be similar. It's not.
+
+3. **Midnight likely uses a different derivation scheme** - Possibilities include:
+   - Different HD derivation path (different coin type, not `1815'`)
+   - Additional key transformation on top of Cardano keys
+   - Entirely separate key generation from the same mnemonic entropy
+
+#### Tools Created
+
+- `/tmp/cardano-address` - Official Cardano address CLI (v4.0.2)
+- `scripts/test-cardano-derivation.sh` - Safe local script to test mnemonic derivation
+
+#### Next Step
+
+Follow up with Amy.ether to clarify:
+> "The cardano-address derivation produces valid Cardano testnet addresses, but they don't match my Lace Midnight addresses. The key material is completely different, not just the prefix. Does Midnight use a different HD derivation path than standard Cardano?"
+
+---
+
+### 2026-01-24: Midnight Docs AI Breakthrough + Testing HD Derivation
+
+#### Discovery from Midnight Docs "Ask AI"
+
+Asked the Midnight docs chatbot: "How do I derive a wallet seed from my Lace Midnight Preview wallet's 24-word mnemonic for use with WalletBuilder in the TypeScript SDK?"
+
+The response was highly informative:
+
+1. **Midnight's HD derivation path is documented**: `m/44'/2400'/account'/role/index`
+   - `2400'` is Midnight's coin type (different from Cardano's `1815'`)
+   - Uses `Roles.Zswap` (role 3) for wallet seed derivation
+
+2. **The SDK package**: `@midnight-ntwrk/wallet-sdk-hd` handles HD derivation
+
+3. **The documented flow**:
+   ```
+   Mnemonic → BIP-39 seed (64 bytes) → HDWallet.fromSeed() → selectAccount(0) → selectRole(Roles.Zswap) → deriveKeyAt(0) → wallet seed
+   ```
+
+4. **What's NOT documented**: How to convert mnemonic to the binary seed (the docs say "use a BIP-39 implementation yourself")
+
+This was a significant find - we now knew Midnight uses coin type `2400'`, not Cardano's `1815'`.
+
+#### Updated Verification Script
+
+Added Method 5 to `src/verify-mnemonic.ts` implementing the documented Midnight HD derivation:
+
+```typescript
+function deriveMidnightWalletSeed(bip39Seed: Uint8Array): string | null {
+  const generatedWallet = HDWallet.fromSeed(bip39Seed);
+  if (generatedWallet.type !== "seedOk") return null;
+
+  const zswapKey = generatedWallet.hdWallet
+    .selectAccount(0)
+    .selectRole(Roles.Zswap)
+    .deriveKeyAt(0);
+
+  if (zswapKey.type === "keyDerived") {
+    return Buffer.from(zswapKey.key).toString("hex");
+  }
+  return null;
+}
+```
+
+#### Test Results
+
+Ran all 5 derivation methods with the Lace mnemonic:
+
+| Method | Derived Address Prefix | Match? |
+|--------|----------------------|--------|
+| 1. Raw Entropy | `mn_shield-addr_test1...` | No |
+| 2. Icarus/CIP-3 | `mn_shield-addr_test1...` | No |
+| 3. BIP-39 first 32 bytes | `mn_shield-addr_test1...` | No |
+| 4. BIP-39 last 32 bytes | `mn_shield-addr_test1...` | No |
+| 5. Midnight HD (m/44'/2400'/0'/3/0) | `mn_shield-addr_test1...` | No |
+
+**Lace shows**: `mn_shield-addr_preview1...`
+
+**Key observations:**
+1. **All methods produce `_test1` prefix**, but Lace shows `_preview1`
+2. **The key material itself is different** - even accounting for prefix, the addresses don't match
+3. **Even the documented Midnight HD path doesn't match Lace**
+
+#### Remaining Unknowns
+
+1. **BIP-39 passphrase** - We used empty string `""`. Does Lace use a passphrase?
+2. **Network config affects key derivation** - The `_test1` vs `_preview1` might indicate the SDK derives keys differently per network, not just encodes addresses differently
+3. **Different derivation indices** - Lace might use different account, role, or key index values
+
+#### Amy's Continued Recommendation
+
+Amy.ether continues to recommend using `multiappfix.pages.dev` with wallet connect. When asked for clarification about the derivation mismatch, she pointed back to this tool rather than providing SDK configuration details.
+
+**Questions sent to Amy:**
+1. Does Lace use a BIP-39 passphrase when deriving the seed?
+2. Does Preview network require different SDK configuration that affects key derivation?
+3. What specifically does multiappfix.pages.dev do? Is it an official Midnight tool?
+
+---
+
+### 2026-01-24: Root Cause Found - Wrong SDK Version
+
+#### The Breakthrough Question
+
+Asked the Midnight docs AI: "How do I configure the Midnight SDK to produce addresses with `preview1` prefix for the Preview network? Using `setNetworkId(NetworkId.TestNet)` produces `_test1` prefix addresses, but Lace Midnight Preview shows `_preview1` addresses."
+
+**Response**: The docs AI confirmed that `preview1` HRP is **not documented** in the current SDK docs. It pointed to a migration guide showing that Preview network uses a completely different SDK configuration with **string literal** `networkId: 'preview'` instead of the enum-based `NetworkId.TestNet`.
+
+#### Migration Guide Discovery
+
+Fetched the migration guide at `https://docs.midnight.network/how-to/migrate-from-testnet-02-to-preview` and discovered we're using **entirely the wrong SDK version**.
+
+**Our current setup (testnet-02 era):**
+```json
+{
+  "@midnight-ntwrk/compact-runtime": "^0.8.1",
+  "@midnight-ntwrk/ledger": "^4.0.0",
+  "@midnight-ntwrk/midnight-js-contracts": "2.0.2",
+  "@midnight-ntwrk/midnight-js-network-id": "2.0.2",
+  "@midnight-ntwrk/wallet": "5.0.0",
+  "@midnight-ntwrk/wallet-sdk-hd": "^2.0.0"
+}
+```
+
+**Preview network requires (v3.0.0-alpha):**
+```json
+{
+  "@midnight-ntwrk/compact-runtime": "0.11.0-rc.1",
+  "@midnight-ntwrk/ledger-v6": "6.1.0-alpha.6",
+  "@midnight-ntwrk/midnight-js-contracts": "3.0.0-alpha.11",
+  "@midnight-ntwrk/midnight-js-network-id": "3.0.0-alpha.11",
+  "@midnight-ntwrk/wallet-sdk-facade": "1.0.0-beta.12",
+  "@midnight-ntwrk/wallet-sdk-hd": "3.0.0-beta.7"
+}
+```
+
+**Additional requirements for Preview:**
+- Node.js 22.x (we may have 20.x)
+- Compact compiler 0.27.0 (we have 0.2.0)
+- Proof server with `--network preview` flag
+
+#### What This Explains
+
+| Issue | Root Cause |
+|-------|------------|
+| `_test1` prefix instead of `_preview1` | Old SDK only knows old network IDs |
+| Address mismatch with Lace | Old wallet SDK uses different derivation/encoding |
+| Lace incompatibility | Lace uses Preview SDK, we're on testnet-02 SDK |
+| None of 5 derivation methods worked | Entire SDK architecture is different |
+
+#### The Real Problem
+
+We followed documentation that was written for testnet-02, but:
+1. testnet-02 indexer is down (503 errors)
+2. Lace Midnight Preview uses the Preview network
+3. Preview network requires completely different SDK packages
+4. The migration guide exists but wasn't prominently linked from getting-started docs
+
+#### Options Forward
+
+1. **Full SDK upgrade to v3.0.0-alpha** - Significant rewrite:
+   - Update all package versions
+   - Update Compact compiler to 0.27.0
+   - Rewrite deploy.ts for new API (different providers, async patterns)
+   - Recompile contract with new compiler
+   - Test with Preview network
+
+2. **Fallback: Fresh wallet with current SDK** - Deploy to whatever network v2 SDK supports:
+   - Generate new seed (don't try to match Lace)
+   - May need to find a working testnet-02 alternative
+   - Achieves deployment goal without Lace integration
+
+3. **Wait for stable v3 SDK** - The packages are all alpha/beta, may have breaking changes
+
+---
+
+## Documentation Gaps Observed
+
+Throughout this journey, several gaps in the official Midnight documentation became apparent. These observations may be valuable for improving developer onboarding.
+
+### What the Docs Cover Well
+
+- Compact language syntax and semantics
+- SDK package installation and basic usage
+- Deployment flow structure
+- testnet-02 endpoint configuration
+
+### What's Unclear or Missing
+
+1. **Multiple testnets exist without clear guidance**
+   - Docs reference testnet-02, but Lace Midnight Preview connects to a different "Preview" network
+   - This distinction isn't prominently explained anywhere
+   - A developer following the docs ends up on the wrong network for Lace integration
+
+2. **No clear path for Lace wallet + CLI integration**
+   - The SDK expects 32-byte hex seeds
+   - Lace uses 24-word BIP-39 mnemonics
+   - No documentation on how to derive one from the other
+   - No guidance on using a Lace-created wallet programmatically
+
+3. **Bech32 prefix configuration undocumented**
+   - The `_test1` vs `_preview1` prefix difference is never mentioned
+   - A developer wouldn't know they need different bech32 settings for Preview
+   - This caused significant confusion and debugging time
+
+4. **Which network should developers use?**
+   - If Lace Midnight Preview is the recommended wallet, docs should lead with Preview endpoints
+   - Instead, docs point to testnet-02 which appears to have availability issues
+   - No clear recommendation on "start here" network
+
+5. **Seed derivation specifics missing**
+   - No documentation on how Midnight/Cardano derives keys from mnemonics
+   - Multiple derivation standards exist (Icarus, BIP-39, etc.)
+   - Had to experiment with 4+ methods without guidance
+
+6. **SDK `NetworkId` enum doesn't match reality**
+   - Enum has: Undeployed, DevNet, TestNet, MainNet
+   - No Preview option, even though Preview is a distinct network with different address encoding
+   - Misleading because Preview technically uses `NetworkId.TestNet` but with different bech32 config
+
+7. **Migration guide not linked from getting-started**
+   - Critical migration guide exists at `/how-to/migrate-from-testnet-02-to-preview`
+   - Contains essential version requirements for Preview network
+   - Not linked from the main tutorials or getting-started pages
+   - A developer following the main docs ends up with incompatible v2.x SDK
+
+8. **SDK version requirements buried**
+   - Preview requires v3.0.0-alpha SDK packages, but this isn't stated upfront
+   - The "stable" v2.x packages in npm appear current but only work with deprecated testnet-02
+   - No clear "which versions for which network" compatibility matrix
+
+### Impact on Developer Experience
+
+- Required Discord support to understand basic network topology
+- Multiple hours spent debugging issues that clear documentation would prevent
+- Had to build custom diagnostic tools (`verify-mnemonic.ts`) to understand the system
+- Still blocked on deployment pending undocumented configuration details
+
+### Potential Documentation Improvements
+
+1. Add a "Network Overview" page explaining testnet-02 vs Preview vs future networks
+2. Document Lace wallet integration for CLI developers
+3. Explain bech32 prefix configuration and when different prefixes are needed
+4. Provide example code for mnemonic-to-seed derivation
+5. Clearly state which network new developers should target
+
+### Diagnostic Questions for Docs AI Chatbot
+
+To test whether the official documentation covers these gaps, we formulated targeted questions for the Midnight docs "Ask AI" chatbot. These questions are designed to probe specific knowledge gaps:
+
+**Primary questions (most likely to surface useful info):**
+
+1. "How do I configure bech32 address prefix in the Midnight SDK?"
+   - *Directly asks about the configuration mechanism needed for Preview*
+
+2. "How do I configure the SDK to work with Preview network instead of testnet?"
+   - *May surface any Preview-specific setup documentation*
+
+3. "What is the difference between Preview network and testnet-02 endpoints?"
+   - *Tests whether the network distinction is documented anywhere*
+
+**Secondary questions:**
+
+4. "How do I derive a wallet seed from a 24-word mnemonic for use with WalletBuilder?"
+   - *Direct question about the mnemonic-to-seed derivation path*
+
+5. "How do I use my Lace Midnight wallet with the TypeScript SDK for CLI deployment?"
+   - *Tests if there's any Lace + CLI integration documentation*
+
+6. "What genesis configuration does Preview network use?"
+   - *Amy mentioned genesis config differs - might surface technical details*
+
+**Specific symptom-based question:**
+
+7. "How do I change the address prefix from test1 to preview1?"
+   - *Very specific to our exact observed symptom*
+
+If these questions return empty or generic answers, it confirms the documentation gaps identified above. If they return useful configuration details, we have our solution.
+
+**Results:** *(To be filled in after testing)*
+
+---
+
 ## Findings
 
 ### What Works
@@ -325,17 +666,51 @@ Current dependencies (aligned with Preview network):
 
 13. **Document negative results** - Recording what DIDN'T work (4 derivation methods) is as valuable as what did work.
 
+14. **Midnight keys ≠ Cardano keys** - Despite Midnight's Cardano heritage, standard Cardano HD derivation (CIP-1852, path m/1852'/1815'/0'/0/0) does not produce Midnight-compatible keys. The same mnemonic produces entirely different public keys for Cardano vs Midnight.
+
+15. **Test with official tools first** - Using the official `cardano-address` CLI let us definitively rule out the "just a prefix difference" theory. The key material itself is different.
+
+16. **Documentation can be incomplete** - Even with the correct HD path from official docs (m/44'/2400'/0'/3/0), the derived addresses still didn't match Lace. The docs show the derivation code but don't cover all the variables (passphrase, network-specific config).
+
+17. **Ask the docs AI chatbot** - The Midnight docs "Ask AI" feature provided the HD path information that wasn't easily discoverable in the static docs. It also honestly stated what ISN'T documented.
+
+18. **Check for migration guides early** - The testnet-02 → Preview migration guide existed but wasn't prominently linked. It contained critical information about SDK version requirements that would have saved hours of debugging.
+
+19. **Version mismatches can cause subtle failures** - The old SDK "worked" (compiled, ran, connected) but produced incompatible addresses. This is worse than a hard failure because it appears to work until you try to integrate with other tools.
+
+20. **Alpha/beta doesn't mean optional** - Preview network *requires* v3.0.0-alpha SDK packages. The "stable" v2.x packages only work with the deprecated testnet-02.
+
 ---
 
 ## Resolution
 
-*In Progress* - Wallet integration with Lace Midnight Preview remains unsolved due to network ID mismatch and unknown seed derivation.
+*In Progress* - Wallet integration with Lace Midnight Preview remains unsolved, but we now understand the root cause.
 
-**Two paths forward:**
+### Root Cause (Confirmed)
 
-1. **Ask Discord contact about specific issue**: "SDK produces `_test1` addresses but Lace shows `_preview1`. Is there a different NetworkId or SDK configuration for Preview network?"
+The issue is **bech32 address prefix configuration**, not `NetworkId`:
 
-2. **Use fresh CLI-generated wallet**: Bypass Lace integration entirely; generate a new seed with the deploy script and fund it via the Preview faucet.
+- Preview and testnet-02 both use `NetworkId.TestNet` (value 0)
+- The difference is the bech32 human-readable prefix used in address encoding
+- SDK defaults to legacy testnet prefix (`_test1`)
+- Preview network uses a different prefix (`_preview1`)
+
+### What We're Waiting For
+
+Amy.ether (Discord) is providing the specific SDK configuration needed to:
+1. Use Preview's bech32 prefix scheme
+2. Potentially confirm the correct seed derivation method
+
+### Fallback Path
+
+If Lace integration remains blocked:
+
+1. **Use fresh CLI-generated wallet**: Bypass Lace entirely
+2. Generate a new seed with the deploy script
+3. Fund via the Preview faucet
+4. Proceed with deployment
+
+This achieves the deployment goal without Lace wallet reuse.
 
 ---
 
@@ -418,9 +793,14 @@ npm run deploy
 
 ### Open Questions for Discord
 
-1. Is there a `NetworkId.Preview` or equivalent for Preview network addresses?
-2. What seed derivation does Lace Midnight Preview use internally?
-3. Is there SDK documentation for CLI + Lace wallet integration?
+1. ~~Is there a `NetworkId.Preview` or equivalent for Preview network addresses?~~
+   **ANSWERED**: No - Preview uses `NetworkId.TestNet` (0) but with different bech32 prefix configuration.
+
+2. **How do we configure the SDK to use Preview's bech32 prefix?** (Awaiting response from Amy.ether)
+
+3. What seed derivation does Lace Midnight Preview use internally?
+
+4. Is there SDK documentation for CLI + Lace wallet integration?
 
 ### Lace Wallet Details (for reference)
 
@@ -430,4 +810,81 @@ npm run deploy
 
 ---
 
-*Last updated: 2026-01-24*
+---
+
+## Recommended Next Steps
+
+### Option A: Upgrade to Preview SDK (Recommended for Full Integration)
+
+This path enables Lace wallet integration and deploys to the current Preview network.
+
+**Steps:**
+1. Update Node.js to 22.x if needed (`node --version` to check)
+2. Install Compact compiler 0.27.0:
+   ```bash
+   compact update 0.27.0
+   ```
+3. Update `package.json` with Preview-compatible versions:
+   ```json
+   {
+     "@midnight-ntwrk/compact-runtime": "0.11.0-rc.1",
+     "@midnight-ntwrk/ledger-v6": "6.1.0-alpha.6",
+     "@midnight-ntwrk/midnight-js-contracts": "3.0.0-alpha.11",
+     "@midnight-ntwrk/midnight-js-network-id": "3.0.0-alpha.11",
+     "@midnight-ntwrk/midnight-js-http-client-proof-provider": "3.0.0-alpha.11",
+     "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "3.0.0-alpha.11",
+     "@midnight-ntwrk/midnight-js-level-private-state-provider": "3.0.0-alpha.11",
+     "@midnight-ntwrk/midnight-js-node-zk-config-provider": "3.0.0-alpha.11",
+     "@midnight-ntwrk/midnight-js-types": "3.0.0-alpha.11",
+     "@midnight-ntwrk/wallet-sdk-facade": "1.0.0-beta.12",
+     "@midnight-ntwrk/wallet-sdk-hd": "3.0.0-beta.7"
+   }
+   ```
+4. Recompile contract with new compiler
+5. Rewrite `deploy.ts` for v3 API (string-based `networkId: 'preview'`, new provider patterns)
+6. Update proof server command: `--network preview`
+7. Test mnemonic derivation again with new SDK
+
+**Effort:** High (significant rewrite)
+**Benefit:** Full Lace integration, current network, future-proof
+
+### Option B: Fresh Wallet Deployment (Fastest Path to Deployment)
+
+This path bypasses Lace integration and deploys with current SDK.
+
+**Steps:**
+1. Run `npm run deploy`
+2. Generate a new wallet seed (answer `n` to existing seed prompt)
+3. Save the generated seed securely
+4. Attempt to fund via testnet-02 faucet (if available) or find alternative
+5. If testnet-02 is down, this option may be blocked
+
+**Effort:** Low
+**Benefit:** Quick deployment if network is available
+**Risk:** testnet-02 appears to be deprecated/unstable
+
+### Option C: Hybrid Approach
+
+1. Start with Option A (SDK upgrade)
+2. If blocked by alpha SDK issues, fall back to Option B
+3. Document both attempts for the developer experience narrative
+
+### Key Resources for Next Session
+
+| Resource | URL/Path |
+|----------|----------|
+| Migration Guide | https://docs.midnight.network/how-to/migrate-from-testnet-02-to-preview |
+| Preview Endpoints | indexer.preview.midnight.network, rpc.preview.midnight.network |
+| Current deploy.ts | `src/deploy.ts` (needs rewrite for v3) |
+| Mnemonic test script | `src/verify-mnemonic.ts` |
+| This document | `docs/my-developer-experience.md` |
+
+### Questions Still Open with Amy
+
+1. Does Lace use a BIP-39 passphrase?
+2. What is multiappfix.pages.dev and is it official?
+3. Any simpler path for Lace + CLI integration?
+
+---
+
+*Last updated: 2026-01-24 (Session 3: Root cause found - wrong SDK version for Preview network)*
