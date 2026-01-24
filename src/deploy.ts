@@ -129,7 +129,15 @@ async function main() {
     wallet.start();
     console.log("Wallet started, syncing...");
 
-    // Wait for initial sync
+    // Try to get address immediately (may be available before full sync)
+    const initialState = await Rx.firstValueFrom(wallet.state());
+    if (initialState.address) {
+      console.log(`Wallet address: ${initialState.address}`);
+      console.log("(Address available - you can fund it now while sync continues)");
+    }
+
+    // Wait for initial sync with timeout info
+    console.log("Waiting for network sync (this may take a minute)...");
     await Rx.firstValueFrom(
       wallet.state().pipe(
         Rx.filter((state) => state.syncProgress !== undefined)
@@ -137,7 +145,9 @@ async function main() {
     );
 
     const state = await Rx.firstValueFrom(wallet.state());
-    console.log(`Wallet address: ${state.address}`);
+    if (!initialState.address) {
+      console.log(`Wallet address: ${state.address}`);
+    }
 
     // Check balance
     let balance = getBalance(state.balances);
