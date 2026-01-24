@@ -4,29 +4,23 @@ import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client
 import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
 import { NodeZkConfigProvider } from "@midnight-ntwrk/midnight-js-node-zk-config-provider";
 import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-private-state-provider";
-import {
-  NetworkId,
-  setNetworkId,
-  getZswapNetworkId,
-  getLedgerNetworkId,
-} from "@midnight-ntwrk/midnight-js-network-id";
-import { createBalancedTx } from "@midnight-ntwrk/midnight-js-types";
-import { nativeToken, Transaction } from "@midnight-ntwrk/ledger";
-import { Transaction as ZswapTransaction } from "@midnight-ntwrk/zswap";
+import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
+import { NetworkId, nativeToken } from "@midnight-ntwrk/zswap";
 import { WebSocket } from "ws";
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import * as readline from "readline/promises";
 import * as Rx from "rxjs";
-import { type Wallet } from "@midnight-ntwrk/wallet-api";
+import type { Wallet } from "@midnight-ntwrk/wallet-api";
 
 // Fix WebSocket for Node.js environment
 // @ts-ignore
 globalThis.WebSocket = WebSocket;
 
 // Configure for Midnight Preview Network
-setNetworkId(NetworkId.TestNet);
+// Note: Preview uses TestNet network ID but different endpoints and bech32 prefix
+setNetworkId("preview");
 
 // Preview network connection endpoints (used by Lace Midnight Preview)
 const PREVIEW_CONFIG = {
@@ -40,6 +34,14 @@ const PREVIEW_CONFIG = {
 const AUTHOR_NAME = "Joseph Fajen";
 const STATEMENT = "Deployed by Joseph Fajen as a proof of concept exercise";
 
+// Get the native token identifier for balance lookups
+const NATIVE_TOKEN = nativeToken();
+
+// Helper to get balance from wallet state
+const getBalance = (balances: Record<string, bigint>): bigint => {
+  return balances[NATIVE_TOKEN] ?? 0n;
+};
+
 // Helper to wait for wallet funding
 const waitForFunds = (wallet: Wallet) =>
   Rx.firstValueFrom(
@@ -52,7 +54,7 @@ const waitForFunds = (wallet: Wallet) =>
         }
       }),
       Rx.filter((state) => state.syncProgress?.synced === true),
-      Rx.map((s) => s.balances[nativeToken()] ?? 0n),
+      Rx.map((s) => getBalance(s.balances)),
       Rx.filter((balance) => balance > 0n),
       Rx.tap((balance) => console.log(`Wallet funded with balance: ${balance}`))
     )
@@ -73,7 +75,7 @@ function generateSeed(): string {
 
 async function main() {
   console.log("===========================================");
-  console.log("  Proof of Authorship - Midnight Testnet");
+  console.log("  Proof of Authorship - Midnight Preview");
   console.log("===========================================\n");
 
   const rl = readline.createInterface({
@@ -111,15 +113,16 @@ async function main() {
       console.log(`**********************\n`);
     }
 
-    // Build wallet
+    // Build wallet using the new API
+    // Note: Using NetworkId.TestNet as Preview shares the same network ID
     console.log("Building wallet...");
-    const wallet = await WalletBuilder.buildFromSeed(
+    const wallet = await WalletBuilder.build(
       PREVIEW_CONFIG.indexer,
       PREVIEW_CONFIG.indexerWS,
       PREVIEW_CONFIG.proofServer,
       PREVIEW_CONFIG.node,
       walletSeed,
-      getZswapNetworkId(),
+      NetworkId.TestNet,
       "warn"
     );
 
@@ -137,12 +140,12 @@ async function main() {
     console.log(`Wallet address: ${state.address}`);
 
     // Check balance
-    let balance = state.balances[nativeToken()] || 0n;
+    let balance = getBalance(state.balances);
 
     if (balance === 0n) {
       console.log("\nWallet balance: 0");
       console.log("Please fund your wallet:");
-      console.log("1. Go to: https://midnight.network/test-faucet");
+      console.log("1. Go to: https://faucet.preview.midnight.network/");
       console.log(`2. Enter address: ${state.address}`);
       console.log("3. Request tDUST tokens\n");
       console.log("Waiting for funds...");
@@ -156,36 +159,24 @@ async function main() {
     const ContractModule = await import(contractModulePath);
     const contractInstance = new ContractModule.Contract({});
 
-    // Create wallet provider
+    // Create wallet provider with new interface
+    // Note: Using type assertions to bridge wallet SDK v5 and contracts v3-alpha type differences
     const walletState = await Rx.firstValueFrom(wallet.state());
 
     const walletProvider = {
-      coinPublicKey: walletState.coinPublicKey,
-      encryptionPublicKey: walletState.encryptionPublicKey,
-      balanceTx(tx: any, newCoins: any) {
-        return wallet
-          .balanceTransaction(
-            ZswapTransaction.deserialize(
-              tx.serialize(getLedgerNetworkId()),
-              getZswapNetworkId()
-            ),
-            newCoins
-          )
-          .then((tx) => wallet.proveTransaction(tx))
-          .then((zswapTx) =>
-            Transaction.deserialize(
-              zswapTx.serialize(getZswapNetworkId()),
-              getLedgerNetworkId()
-            )
-          )
-          .then(createBalancedTx);
+      getCoinPublicKey: () => walletState.coinPublicKey,
+      getEncryptionPublicKey: () => walletState.encryptionPublicKey,
+      // balanceTx returns the balanced recipe (proving done by contracts library)
+      balanceTx(tx: any, newCoins: any): Promise<any> {
+        return wallet.balanceTransaction(tx, newCoins) as Promise<any>;
       },
-      submitTx(tx: any) {
-        return wallet.submitTransaction(tx);
+      submitTx(tx: any): Promise<any> {
+        return wallet.submitTransaction(tx) as Promise<any>;
       },
     };
 
     // Configure providers
+    // Note: Using type assertions to bridge SDK version differences
     console.log("Configuring providers...");
     const zkConfigPath = path.join(contractPath, "managed", "proof-of-authorship");
     const providers = {
@@ -198,8 +189,8 @@ async function main() {
       ),
       zkConfigProvider: new NodeZkConfigProvider(zkConfigPath),
       proofProvider: httpClientProofProvider(PREVIEW_CONFIG.proofServer),
-      walletProvider: walletProvider,
-      midnightProvider: walletProvider,
+      walletProvider: walletProvider as any,
+      midnightProvider: walletProvider as any,
     };
 
     // Deploy contract
@@ -255,7 +246,7 @@ async function main() {
       statement: STATEMENT,
       contractHash: Buffer.from(contractHash).toString("hex"),
       walletAddress: state.address,
-      network: "testnet-02",
+      network: "preview",
     };
 
     fs.writeFileSync("deployment.json", JSON.stringify(deploymentInfo, null, 2));
@@ -265,7 +256,7 @@ async function main() {
     console.log("  DEPLOYMENT SUCCESSFUL!");
     console.log("===========================================");
     console.log(`\nContract Address: ${contractAddress}`);
-    console.log(`\nVerify at: https://indexer.testnet-02.midnight.network`);
+    console.log(`\nVerify at: https://indexer.preview.midnight.network`);
 
     // Cleanup
     await wallet.close();
