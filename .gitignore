@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Compiled contract artifacts (can be regenerated)
+contracts/managed/
+
+# Runtime data
+*.log
+.DS_Store
+
+# Private state storage
+*-private-state/
+
+# Sensitive files
+.env
+*.seed

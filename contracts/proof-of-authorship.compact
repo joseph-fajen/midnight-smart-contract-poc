@@ -1,0 +1,24 @@
+pragma language_version 0.18;
+
+// Proof of Authorship Contract
+// Stores authorship information permanently on the Midnight blockchain
+
+// Public ledger state - all fields are publicly visible
+export ledger authorName: Opaque<"string">;
+export ledger timestamp: Opaque<"string">;
+export ledger contractHash: Bytes<32>;
+export ledger statement: Opaque<"string">;
+
+// Circuit to record authorship data
+// All inputs are explicitly disclosed to the public ledger
+export circuit recordAuthorship(
+  author: Opaque<"string">,
+  time: Opaque<"string">,
+  hash: Bytes<32>,
+  msg: Opaque<"string">
+): [] {
+  authorName = disclose(author);
+  timestamp = disclose(time);
+  contractHash = disclose(hash);
+  statement = disclose(msg);
+}
