@@ -17,3 +17,4 @@ contracts/managed/
 # Sensitive files
 .env
 *.seed
+text.txt

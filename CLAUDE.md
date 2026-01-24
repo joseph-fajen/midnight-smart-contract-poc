@@ -127,7 +127,7 @@ Faucet:      https://midnight.network/test-faucet/
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/midnightntwrk/compact/releases/download/compact-v0.2.0/compact-installer.sh | sh
 
 # Start proof server
-docker run -p 6300:6300 midnightnetwork/proof-server -- 'midnight-proof-server --network testnet'
+docker run -p 6300:6300 midnightnetwork/proof-server midnight-proof-server
 
 # Compile contract
 compact compile contracts/proof-of-authorship.compact contracts/managed/proof-of-authorship

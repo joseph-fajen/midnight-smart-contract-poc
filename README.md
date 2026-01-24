@@ -50,7 +50,7 @@ npm run build
 In a separate terminal:
 
 ```bash
-docker run -p 6300:6300 midnightnetwork/proof-server -- 'midnight-proof-server --network testnet'
+docker run -p 6300:6300 midnightnetwork/proof-server midnight-proof-server
 ```
 
 ### 5. Deploy
@@ -66,6 +66,21 @@ The script will:
 - Deploy the contract
 - Call `recordAuthorship` to store the authorship data on-chain
 - Save deployment details to `deployment.json`
+
+### Resuming with an Existing Seed
+
+If deployment was interrupted (e.g., testnet outage), you can resume with your saved seed:
+
+```bash
+npm run deploy
+```
+
+When prompted:
+1. Answer `y` to "Do you have a wallet seed?"
+2. Paste your 64-character hex seed
+3. The script will restore your wallet and continue from where you left off
+
+**Troubleshooting**: If you see repeated "Timed out trying to connect" messages, the testnet may be down. Press `Ctrl+C` to exit and try again later. Check the [Midnight Discord](https://discord.com/invite/midnightnetwork) for network status.
 
 ## Verification
 
