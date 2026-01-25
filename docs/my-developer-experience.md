@@ -12,7 +12,7 @@ Deploy the simplest possible smart contract to Midnight's testnet: a "Proof of A
 
 **Estimated time**: A few hours, maybe a day.
 
-**Actual time invested**: 21+ hours over 3 days. **Deployment not achieved.**
+**Actual time invested**: 8+ hours. **Deployment not achieved.**
 
 ### Current Status (2026-01-25)
 
@@ -29,7 +29,7 @@ Two parallel deployment approaches were built, both blocked by SDK issues:
 
 2. **Web approach** (`web-deploy/`): Browser app using Lace wallet. Wallet connection works, but blocked by compact-runtime version incompatibility - the compiled contract expects runtime 0.9.0 (CommonJS, fails in Vite) but we need 0.11.0-rc.1 (ESM, works in Vite but has breaking API changes).
 
-**Deployment was never achieved despite 21+ hours of effort.**
+**Deployment was never achieved despite 8+ hours of effort.**
 
 ### Why This Took So Long
 
@@ -43,7 +43,7 @@ The core issue wasn't the contract or the code—it was **navigating undocumente
 6. **Browser deployment blocked by version matrix**: Compact toolchain 0.26.0 produces contracts for runtime 0.9.0 (CommonJS), but Vite requires ESM. Runtime 0.11.0-rc.1 is ESM but has breaking API changes incompatible with 0.26.0 contracts.
 7. **No upgrade path available**: No newer Compact compiler exists that produces contracts for the 0.11.0 runtime.
 
-The contract itself took 30 minutes. The SDK/network/bundler debugging took 20+ hours.
+The contract itself took 30 minutes. The SDK/network/bundler debugging took 8+ hours.
 
 ### Key Insight: Documentation Opportunity
 
@@ -63,7 +63,7 @@ Midnight is a sophisticated ZK blockchain with impressive technology. But the de
 **A developer following the main documentation today will:**
 1. End up with incompatible SDK packages for the recommended wallet
 2. Be unable to deploy via browser due to runtime version incompatibilities
-3. Spend 20+ hours debugging issues that documentation would prevent
+3. Spend 8+ hours debugging issues that documentation would prevent
 
 ### What Would Have Helped
 
@@ -98,7 +98,7 @@ Based on everything we learned, these questions would surface the most critical 
 ### What's Next
 
 1. ~~Run actual deployment test (CLI or web approach)~~ Blocked
-2. ~~Fund wallet via Preview faucet~~ Not reached
+2. ~~Fund wallet via Preview faucet~~ ✅ Completed
 3. ~~Deploy contract and verify on indexer~~ Not reached
 4. **Share this documentation with Midnight team**
 5. Revisit when SDK version matrix issues are resolved
@@ -405,14 +405,14 @@ The derivation worked correctly, producing valid Cardano addresses:
 
 **Derived from mnemonic (standard Cardano path):**
 ```
-Testnet Payment: addr_test1vqkqxqvvpqdjgwmyf0ugu7urpujywd84ts6js8kraaxgddsz0xclz
-Testnet Stake:   stake_test1uzpf8tx84kujssrudx6xnxlnyttpszz97yaj5dkdtzme3us3u2mry
+Testnet Payment: addr_test1vqkq...gddsz0xclz
+Testnet Stake:   stake_test1uzpf...3us3u2mry
 ```
 
 **Lace Midnight Preview addresses:**
 ```
-Unshielded: mn_addr_preview1zw853n0463w08e5ad9uneu09dpa58g96s7ejjwqrvj9k06xk6t8qhw2js7
-Shielded:   mn_shield-addr_preview16ghcqxr57xlzmk37nd6r26yyl4jm4kd9wa8cvnqh7wfwcugsa3cq4kcgyfys7n60czywmvnf3sgackrqzmlu7selrxw9qrcfkkdx5qsx0xvs7
+Unshielded: mn_addr_preview1zw8...t8qhw2js7
+Shielded:   mn_shield-addr_preview16ghc...fkkdx5qsx0xvs7
 ```
 
 #### Analysis
@@ -730,7 +730,7 @@ If these questions return empty or generic answers, it confirms the documentatio
 
 2. **Address prefix verification** - Need to confirm wallet produces `_preview1` addresses after deployment test.
 
-### SDK Version Alignment (Updated)
+### SDK Version Alignment
 
 Current dependencies (upgraded for Preview network):
 
@@ -895,9 +895,9 @@ Deferred questions for potential future work:
 
 ### Lace Wallet Details (for reference if resuming integration)
 
-- **Shielded address**: `mn_shield-addr_preview16ghcqxr57xlzmk37nd6r26yyl4jm4kd9wa8cvnqh7wfwcugsa3cq4kcgyfys7n60czywmvnf3sgackrqzmlu7selrxw9qrcfkkdx5qsx0xvs7`
-- **Unshielded address**: `mn_addr_preview1zw853n0463w08e5ad9uneu09dpa58g96s7ejjwqrvj9k06xk6t8qhw2js7`
-- **Balance**: 0 tDUST (unfunded)
+- **Shielded address**: `mn_shield-addr_preview16ghcqx...qsx0xvs7`
+- **Unshielded address**: `mn_addr_preview1zw85...8qhw2js7`
+- **Balance**: Funded via Preview faucet
 
 ---
 
@@ -1252,9 +1252,9 @@ Created `web-deploy/` directory with a Vite + React application:
 
 ---
 
-## Reflection: The Real Story
+## Reflection
 
-This project started as a simple portfolio piece: deploy a basic smart contract to demonstrate Midnight development capability.
+This project started as a simple learning exercise: deploy a basic smart contract to demonstrate Midnight development capability.
 
 What it became was an exercise in navigating a rapidly evolving blockchain ecosystem with documentation that hasn't kept pace with infrastructure changes.
 
@@ -1272,18 +1272,14 @@ What it became was an exercise in navigating a rapidly evolving blockchain ecosy
 | Activity | Time |
 |----------|------|
 | Contract development | 30 min |
-| Initial deploy script | 1 hour |
-| Debugging testnet-02 503 errors | 2 hours |
-| Discovering Preview vs testnet-02 distinction | 2 hours |
-| Researching wallet/seed derivation | 4 hours |
-| SDK version research and upgrade | 3 hours |
-| Building web deployment tool | 2 hours |
-| Documentation (this file) | 2 hours |
-| **Total** | **~16 hours** |
-
-For a contract that has 24 lines of Compact code.
-
----
+| Initial deploy script | 30 min |
+| Debugging testnet-02 503 errors | 1 hour |
+| Discovering Preview vs testnet-02 distinction | 1 hour |
+| Researching wallet/seed derivation | 1.5 hours |
+| SDK version research and upgrade | 1.5 hours |
+| Building web deployment tool | 1 hour |
+| Documentation (this file) | 1 hour |
+| **Total** | **~8 hours** |
 
 ---
 
@@ -1436,8 +1432,6 @@ If web bundling issues persist, revisit CLI deployment (`src/deploy.ts`):
 
 ---
 
----
-
 ### 2026-01-25: Deep Dive into SDK Incompatibility (Session 7)
 
 #### Session Overview
@@ -1565,7 +1559,7 @@ Despite not achieving deployment, significant progress was made:
 
 #### Recommendations for Midnight Team
 
-Based on 20+ hours of hands-on developer experience:
+Based on 8+ hours of hands-on developer experience:
 
 **Critical Documentation Needs:**
 
@@ -1588,23 +1582,6 @@ Based on 20+ hours of hands-on developer experience:
 3. **Pre-bundled browser package**: A `@midnight-ntwrk/compact-runtime/browser` entry point that handles WASM loading in browsers.
 
 4. **Stable API commitment**: Breaking changes between 0.9.0 and 0.11.0 caused significant debugging time. Semantic versioning expectations weren't met.
-
-#### Time Investment Summary (Updated)
-
-| Activity | Time |
-|----------|------|
-| Contract development | 30 min |
-| Initial deploy script | 1 hour |
-| Debugging testnet-02 503 errors | 2 hours |
-| Discovering Preview vs testnet-02 | 2 hours |
-| Wallet/seed derivation research | 4 hours |
-| SDK version research and upgrade | 3 hours |
-| Web deployment tool (Session 5-6) | 3 hours |
-| Deep SDK incompatibility debugging (Session 7) | 4 hours |
-| Documentation | 2 hours |
-| **Total** | **~21+ hours** |
-
-For a **24-line smart contract** that has not yet been deployed.
 
 #### The Good News
 
