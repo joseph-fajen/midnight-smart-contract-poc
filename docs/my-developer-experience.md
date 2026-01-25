@@ -12,36 +12,38 @@ Deploy the simplest possible smart contract to Midnight's testnet: a "Proof of A
 
 **Estimated time**: A few hours, maybe a day.
 
-**Actual time invested**: 2+ days and counting.
+**Actual time invested**: 21+ hours over 3 days. **Deployment not achieved.**
 
-### Current Status (2026-01-24)
+### Current Status (2026-01-25)
 
 | Component | Status |
 |-----------|--------|
-| Smart Contract | Written and compiled |
-| CLI Deployment Script | Complete, untested at runtime |
-| Web Deployment Tool | Complete, untested at runtime |
-| Actual Deployment | **Not yet achieved** |
+| Smart Contract | ✅ Written and compiled (24 lines) |
+| CLI Deployment Script | ⚠️ Builds but has type mismatches |
+| Web Deployment Tool | ⚠️ Wallet connects, deploy blocked |
+| Actual Deployment | ❌ **Not achieved** |
 
-Two parallel deployment approaches now exist:
+Two parallel deployment approaches were built, both blocked by SDK issues:
 
-1. **CLI approach** (`src/deploy.ts`): Node.js script using the Midnight SDK directly. Generates its own wallet, requires manual faucet funding.
+1. **CLI approach** (`src/deploy.ts`): Node.js script with type assertions to bridge SDK version mismatches. WebSocket connection timeouts and address prefix issues.
 
-2. **Web approach** (`web-deploy/`): Browser-based React app that connects to Lace Midnight Preview wallet via DApp Connector API. Built to work around CLI SDK limitations with Preview network.
+2. **Web approach** (`web-deploy/`): Browser app using Lace wallet. Wallet connection works, but blocked by compact-runtime version incompatibility - the compiled contract expects runtime 0.9.0 (CommonJS, fails in Vite) but we need 0.11.0-rc.1 (ESM, works in Vite but has breaking API changes).
 
-Neither has been tested end-to-end with actual funds and network interaction.
+**Deployment was never achieved despite 21+ hours of effort.**
 
 ### Why This Took So Long
 
-The core issue wasn't the contract or the code—it was **navigating undocumented network transitions**:
+The core issue wasn't the contract or the code—it was **navigating undocumented network transitions and SDK version incompatibilities**:
 
 1. **Documentation points to testnet-02**, which has availability issues (503 errors on indexer)
 2. **Lace Midnight Preview wallet uses "Preview" network**, which is different from testnet-02
 3. **Preview network requires completely different SDK packages** (v3.0.0-alpha vs v2.x)
 4. **The migration guide exists but isn't linked from getting-started docs**
 5. **SDK type incompatibilities** between wallet and contracts libraries required workarounds
+6. **Browser deployment blocked by version matrix**: Compact toolchain 0.26.0 produces contracts for runtime 0.9.0 (CommonJS), but Vite requires ESM. Runtime 0.11.0-rc.1 is ESM but has breaking API changes incompatible with 0.26.0 contracts.
+7. **No upgrade path available**: No newer Compact compiler exists that produces contracts for the 0.11.0 runtime.
 
-The contract itself took 30 minutes. The SDK/network configuration took 15+ hours.
+The contract itself took 30 minutes. The SDK/network/bundler debugging took 20+ hours.
 
 ### Key Insight: Documentation Opportunity
 
@@ -54,8 +56,14 @@ Midnight is a sophisticated ZK blockchain with impressive technology. But the de
 | No Lace + CLI integration docs | Built entire web app as workaround |
 | Address prefix differences undocumented | Extensive debugging |
 | "Stable" v2.x SDK only works with deprecated network | Misleading package versions |
+| No browser deployment guide | Vite/bundler incompatibilities undocumented |
+| No Compact toolchain ↔ runtime version matrix | Hours debugging version mismatches |
+| CommonJS runtime incompatible with modern bundlers | Browser deployment blocked entirely |
 
-**A developer following the main documentation today will end up with incompatible SDK packages for the recommended wallet.**
+**A developer following the main documentation today will:**
+1. End up with incompatible SDK packages for the recommended wallet
+2. Be unable to deploy via browser due to runtime version incompatibilities
+3. Spend 20+ hours debugging issues that documentation would prevent
 
 ### What Would Have Helped
 
@@ -64,13 +72,36 @@ Midnight is a sophisticated ZK blockchain with impressive technology. But the de
 3. Clear warning that testnet-02 is deprecated/unstable
 4. Lace wallet integration guide for CLI developers
 5. SDK version compatibility matrix
+6. **Compact toolchain ↔ runtime version matrix** (which compiler produces contracts for which runtime)
+7. **Browser deployment guide** covering Vite/Webpack bundler configuration
+8. **ESM-only SDK packages** or documented workarounds for CommonJS/WASM issues
+9. DApp Connector API v4 migration guide (v4 is significantly different from v3)
+
+### Top 3 Questions for Midnight "Ask AI" Chatbot
+
+Based on everything we learned, these questions would surface the most critical missing documentation:
+
+**Question 1: "Which version of compact-runtime is compatible with contracts compiled by Compact toolchain 0.26.0?"**
+
+*Why this matters:* The toolchain produces contracts expecting runtime 0.9.0, but we needed 0.11.0-rc.1 for browser deployment. A version compatibility matrix would have saved 4+ hours of debugging.
+
+**Question 2: "How do I deploy a Midnight smart contract from a browser using Vite? The compact-runtime package has CommonJS/WASM loading issues with esbuild."**
+
+*Why this matters:* This specific technical issue blocked browser deployment entirely. Either (a) there's a workaround we didn't find, (b) there's a browser-compatible package we didn't know about, or (c) this is a known limitation that should be documented.
+
+**Question 3: "I'm a new developer starting today. Should I use testnet-02 or Preview network, and which SDK package versions do I need?"**
+
+*Why this matters:* The getting-started docs point to testnet-02 with v2.x SDK, but the recommended Lace wallet uses Preview with v3.0.0-alpha SDK. A clear answer here would prevent the entire network/SDK mismatch journey.
+
+---
 
 ### What's Next
 
-1. Run actual deployment test (CLI or web approach)
-2. Fund wallet via Preview faucet
-3. Deploy contract and verify on indexer
-4. Document successful path for others
+1. ~~Run actual deployment test (CLI or web approach)~~ Blocked
+2. ~~Fund wallet via Preview faucet~~ Not reached
+3. ~~Deploy contract and verify on indexer~~ Not reached
+4. **Share this documentation with Midnight team**
+5. Revisit when SDK version matrix issues are resolved
 
 ---
 
@@ -1405,4 +1436,213 @@ If web bundling issues persist, revisit CLI deployment (`src/deploy.ts`):
 
 ---
 
-*Last updated: 2026-01-24 (Session 6: Web deployment testing - blocked on Compact runtime version mismatch)*
+---
+
+### 2026-01-25: Deep Dive into SDK Incompatibility (Session 7)
+
+#### Session Overview
+
+Attempted multiple approaches to resolve the compact-runtime version mismatch. Made significant progress on understanding the fundamental issue but ultimately confirmed this is an SDK-level incompatibility that cannot be easily worked around.
+
+#### The Core Problem (Fully Understood)
+
+The Midnight SDK has a **version matrix incompatibility** that makes browser deployment extremely difficult:
+
+| Component | Version | Module Format | Works in Vite? |
+|-----------|---------|---------------|----------------|
+| Compact toolchain | 0.26.0 | Produces contracts for runtime 0.9.0 | N/A |
+| compact-runtime 0.9.0 | 0.9.0 | CommonJS | ❌ WASM loading fails |
+| compact-runtime 0.11.0-rc.1 | 0.11.0-rc.1 | ESM | ✅ Loads correctly |
+| Contract compiled with 0.26.0 | - | Expects 0.9.0 API | ❌ Incompatible with 0.11.0 |
+
+**The dilemma:**
+1. **0.9.0 runtime** uses CommonJS `require()` which fails in Vite because `@midnight-ntwrk/onchain-runtime` has WASM with top-level await. Esbuild (Vite's bundler) cannot handle `require()` to modules with top-level await.
+
+2. **0.11.0-rc.1 runtime** uses ESM and loads correctly in Vite, BUT the contract compiled with toolchain 0.26.0 is incompatible due to breaking API changes.
+
+#### What We Tried and Learned
+
+**Attempt 1: Patch the contract to accept 0.11.0-rc.1**
+
+Changed `expectedRuntimeVersionString` from `'0.9.0'` to `'0.11.0'` in the compiled contract.
+
+Result: Contract loads, but fails at runtime:
+```
+TypeError: __compactRuntime.CompactTypeOpaqueString is not a constructor
+```
+
+**Root cause**: In 0.11.0-rc.1, `CompactTypeOpaqueString` changed from a **class** to a **const**:
+```typescript
+// 0.9.0 (class - instantiate with new)
+const _descriptor_1 = new __compactRuntime.CompactTypeOpaqueString();
+
+// 0.11.0-rc.1 (const - use directly)
+export declare const CompactTypeOpaqueString: CompactType<string>;
+```
+
+**Attempt 2: Patch the constructor calls**
+
+Patched the contract to remove `new` for types that became constants:
+- `new CompactTypeOpaqueString()` → `CompactTypeOpaqueString`
+- `new CompactTypeBoolean()` → `CompactTypeBoolean`
+
+Result: Contract loads further, then fails:
+```
+Error: expected instance of _ChargedState
+at Contract.initialState
+```
+
+**Root cause**: The internal state management types are completely different between 0.9.0 and 0.11.0-rc.1. The contract's `initialState` method creates `new __compactRuntime.ContractState()` and uses it in ways that are incompatible with the new runtime's type system.
+
+The `ChargedState` check is an `instanceof` check that fails because the classes are from different runtime versions - even if they have the same name, they're different class identities.
+
+**Attempt 3: Alternative Vite configurations**
+
+Tried multiple Vite configuration approaches:
+- `optimizeDeps.exclude` for midnight packages
+- `@rollup/plugin-commonjs` for CJS→ESM transformation
+- `vite-plugin-commonjs` for mixed module handling
+- `resolve.conditions: ["browser", "import", "module", "default"]`
+- Various combinations of the above
+
+Result: None resolved the fundamental `require()` + top-level await incompatibility in esbuild.
+
+**Attempt 4: Look for newer Compact compiler**
+
+Checked for newer toolchain versions:
+```bash
+compact list  # Shows 0.26.0 as latest
+compact update 0.27.0  # "Couldn't find specified version"
+```
+
+Result: No newer compiler exists that might produce contracts for 0.11.0 runtime.
+
+#### Key Technical Findings
+
+1. **Module format matters for Vite**: CommonJS (`require()`) and WASM with top-level await are fundamentally incompatible in Vite/esbuild.
+
+2. **Runtime API is not stable**: Between 0.9.0 and 0.11.0-rc.1, multiple breaking changes occurred:
+   - Some `CompactType*` classes became constants
+   - `ContractState` internal structure changed
+   - `ChargedState` type checking was added
+   - Import paths changed (onchain-runtime → onchain-runtime-v1)
+
+3. **Contract ↔ Runtime coupling is tight**: The compiled contract contains hardcoded runtime API calls that are version-specific. You cannot mix contract versions with incompatible runtime versions.
+
+4. **No intermediate solution exists**: There's no compact-runtime version that both (a) works with Vite's module system AND (b) is compatible with toolchain 0.26.0 contracts.
+
+#### What Would Have Solved This
+
+1. **ESM-only compact-runtime 0.9.0**: If the 0.9.0 runtime used ESM imports instead of CommonJS require(), it would load in Vite without issues.
+
+2. **Newer Compact toolchain for 0.11.0**: A compiler that produces contracts targeting runtime 0.11.0-rc.1 would allow browser deployment to work.
+
+3. **Runtime API stability**: If the runtime API didn't have breaking changes between versions, the version mismatch would be a warning, not an error.
+
+4. **Browser bundle of runtime**: A pre-bundled UMD/ESM version of compact-runtime 0.9.0 that handles the WASM loading internally.
+
+#### Final Project Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Smart Contract | ✅ Written | 24 lines of Compact |
+| Contract Compiled | ✅ Complete | Toolchain 0.26.0, targets runtime 0.9.0 |
+| CLI Deployment Script | ⚠️ Builds | Has type assertions, untested at runtime |
+| Web Deployment Tool | ⚠️ Partial | Wallet connects, deploy blocked on runtime |
+| Actual Deployment | ❌ Not Achieved | Blocked by SDK incompatibilities |
+
+#### What DID Work (Valuable Progress)
+
+Despite not achieving deployment, significant progress was made:
+
+1. **Wallet connection works**: The Lace Midnight Preview wallet connects successfully via DApp Connector API v4.
+
+2. **Network configuration**: All Preview network endpoints work correctly (indexer, RPC, proof server).
+
+3. **Contract compilation**: The Compact toolchain works and produces valid artifacts.
+
+4. **Most of the deployment flow**: Everything works up until the moment the contract needs to interact with compact-runtime.
+
+#### Recommendations for Midnight Team
+
+Based on 20+ hours of hands-on developer experience:
+
+**Critical Documentation Needs:**
+
+1. **SDK Version Compatibility Matrix**: A clear table showing which Compact toolchain version produces contracts for which runtime version.
+
+2. **Browser Deployment Guide**: Specific guidance for Vite/Webpack/browser bundlers, including which runtime versions have ESM support.
+
+3. **Network Migration Status**: Prominent notice that testnet-02 is deprecated and all new development should target Preview network.
+
+4. **"Getting Started" Update**: The main getting-started guide should use v3.0.0-alpha SDK packages and Preview network from the start.
+
+5. **DApp Connector API v4 Documentation**: The v4 API is significantly different from v3; needs dedicated migration guide.
+
+**SDK Improvements Needed:**
+
+1. **ESM-only runtime packages**: CommonJS causes bundler incompatibilities. Modern ESM-only packages would work everywhere.
+
+2. **Contract-Runtime version enforcement**: Consider making the version check a warning (not error) or providing a migration tool for contracts.
+
+3. **Pre-bundled browser package**: A `@midnight-ntwrk/compact-runtime/browser` entry point that handles WASM loading in browsers.
+
+4. **Stable API commitment**: Breaking changes between 0.9.0 and 0.11.0 caused significant debugging time. Semantic versioning expectations weren't met.
+
+#### Time Investment Summary (Updated)
+
+| Activity | Time |
+|----------|------|
+| Contract development | 30 min |
+| Initial deploy script | 1 hour |
+| Debugging testnet-02 503 errors | 2 hours |
+| Discovering Preview vs testnet-02 | 2 hours |
+| Wallet/seed derivation research | 4 hours |
+| SDK version research and upgrade | 3 hours |
+| Web deployment tool (Session 5-6) | 3 hours |
+| Deep SDK incompatibility debugging (Session 7) | 4 hours |
+| Documentation | 2 hours |
+| **Total** | **~21+ hours** |
+
+For a **24-line smart contract** that has not yet been deployed.
+
+#### The Good News
+
+1. **The technology is solid**: When you're on the right versions, Midnight's ZK proofs and Compact language work well.
+
+2. **Community is helpful**: Discord support was responsive and knowledgeable.
+
+3. **Progress is being made**: The SDK is actively evolving (alpha → beta → stable).
+
+4. **This documentation will help others**: The detailed troubleshooting here should save future developers significant time.
+
+#### Conclusion
+
+This project became an extended debugging session due to:
+1. Documentation pointing to deprecated network
+2. SDK version incompatibilities between packages
+3. Browser bundler constraints with WASM loading
+4. Breaking API changes between runtime versions
+
+The Midnight technology itself is impressive. The developer experience needs significant improvement in documentation and SDK packaging to match the sophistication of the underlying technology.
+
+**The contract was never the hard part. The hard part was getting the SDK stack to work together.**
+
+---
+
+## Appendix: Error Messages Reference
+
+For future developers hitting similar issues, here are the key error messages and what they mean:
+
+| Error | Meaning | Solution |
+|-------|---------|----------|
+| `503 Service Temporarily Unavailable` on indexer | testnet-02 is deprecated | Use Preview network endpoints |
+| `Version mismatch: compiled code expects 0.9.0, runtime is 0.11.0-rc.1` | Contract compiled for wrong runtime | Need matching compiler or runtime version |
+| `require call is not allowed because transitive dependency contains top-level await` | CommonJS + WASM incompatibility in esbuild | Use ESM runtime or different bundler |
+| `CompactTypeOpaqueString is not a constructor` | API changed between runtime versions | 0.9.0 uses `new`, 0.11.0 uses const |
+| `expected instance of _ChargedState` | Internal state type mismatch | Runtime versions completely incompatible |
+| `_test1` vs `_preview1` address prefix | Wrong network configuration | Use v3 SDK with `setNetworkId("preview")` |
+
+---
+
+*Last updated: 2026-01-25 (Session 7: Deep dive into SDK incompatibility - deployment blocked by version matrix)*

@@ -74,7 +74,12 @@ interface ContractModule {
 async function loadContractModule(): Promise<ContractModule> {
   // Import the contract from src/contract where Vite can bundle it
   const module = await import("../contract/index.cjs");
-  return module as ContractModule;
+  console.log("Contract module loaded:", module);
+  console.log("Module keys:", Object.keys(module));
+  // Vite may wrap CJS exports under 'default' or directly
+  const contractModule = (module.default || module) as ContractModule;
+  console.log("Contract class:", contractModule.Contract);
+  return contractModule;
 }
 
 export async function deployProofOfAuthorship(
