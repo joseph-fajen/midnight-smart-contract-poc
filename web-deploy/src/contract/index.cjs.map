@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.cjs",
+  "sourceRoot": "../../../../",
+  "sources": ["contracts/proof-of-authorship.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAAA;;;;;;;;;;MAaA,AAAA,gBAUC;;;;;cATC,QAAwB;cACxB,MAAsB;cACtB,MAAe;cACf,KAAqB;;;;;;;;;;;;;;;;;;yCAHrB,QAAwB,+BACxB,MAAsB,+BACtB,MAAe,+BACf,KAAqB;;;;;;;;;kDAHrB,QAAwB;kDACxB,MAAsB;kDACtB,MAAe;kDACf,KAAqB;;;OAMtB;;;GACA;EAxBD;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IAMA;;;;;;;;;uDAA2C;IAC3C;;;;;;;;;uDAA0C;IAC1C;;;;;;;;;uDAAsC;IACtC;;;;;;;;;uDAA0C;;;;;;;GAezC;EAXD,AAAA,mBAUC,4BATC,QAAwB,EACxB,MAAsB,EACtB,MAAe,EACf,KAAqB;;IAErB;;;;;;;yGAAsB,QAAM;;uDAAlB;IACV;;;;;;;yGAAqB,MAAI;;uDAAhB;IACT;;;;;;;yGAAwB,MAAI;;uDAAhB;IACZ;;;;;;;yGAAqB,KAAG;;uDAAf;;GACV;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IAjBD;qCAAA;;;;;;;;;;;wFAA2C;KAAA;IAC3C;qCAAA;;;;;;;;;;;wFAA0C;KAAA;IAC1C;qCAAA;;;;;;;;;;;wFAAsC;KAAA;IACtC;qCAAA;;;;;;;;;;;wFAA0C;KAAA;;;;;;;;;;;;;;"
+}

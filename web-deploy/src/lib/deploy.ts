@@ -70,13 +70,10 @@ interface ContractModule {
   Contract: new (initialState: Record<string, unknown>) => any;
 }
 
-// Load the contract module dynamically
+// Load the contract module
 async function loadContractModule(): Promise<ContractModule> {
-  // The contract is loaded from the public directory
-  // Vite serves files from public/ at the root
-  // Using a variable to prevent TypeScript from trying to resolve the module
-  const contractPath = "/contract/index.cjs";
-  const module = await import(/* @vite-ignore */ contractPath);
+  // Import the contract from src/contract where Vite can bundle it
+  const module = await import("../contract/index.cjs");
   return module as ContractModule;
 }
 

@@ -2,6 +2,78 @@
 
 A chronological account of building and deploying a proof-of-authorship smart contract on the Midnight blockchain testnet.
 
+---
+
+## Executive Summary
+
+### The Goal
+
+Deploy the simplest possible smart contract to Midnight's testnet: a "Proof of Authorship" contract that stores four public fields (author name, timestamp, contract hash, and a statement). No complex ZK logic, no private data, no token transfers. Just write, compile, deploy, done.
+
+**Estimated time**: A few hours, maybe a day.
+
+**Actual time invested**: 2+ days and counting.
+
+### Current Status (2026-01-24)
+
+| Component | Status |
+|-----------|--------|
+| Smart Contract | Written and compiled |
+| CLI Deployment Script | Complete, untested at runtime |
+| Web Deployment Tool | Complete, untested at runtime |
+| Actual Deployment | **Not yet achieved** |
+
+Two parallel deployment approaches now exist:
+
+1. **CLI approach** (`src/deploy.ts`): Node.js script using the Midnight SDK directly. Generates its own wallet, requires manual faucet funding.
+
+2. **Web approach** (`web-deploy/`): Browser-based React app that connects to Lace Midnight Preview wallet via DApp Connector API. Built to work around CLI SDK limitations with Preview network.
+
+Neither has been tested end-to-end with actual funds and network interaction.
+
+### Why This Took So Long
+
+The core issue wasn't the contract or the code—it was **navigating undocumented network transitions**:
+
+1. **Documentation points to testnet-02**, which has availability issues (503 errors on indexer)
+2. **Lace Midnight Preview wallet uses "Preview" network**, which is different from testnet-02
+3. **Preview network requires completely different SDK packages** (v3.0.0-alpha vs v2.x)
+4. **The migration guide exists but isn't linked from getting-started docs**
+5. **SDK type incompatibilities** between wallet and contracts libraries required workarounds
+
+The contract itself took 30 minutes. The SDK/network configuration took 15+ hours.
+
+### Key Insight: Documentation Opportunity
+
+Midnight is a sophisticated ZK blockchain with impressive technology. But the developer onboarding experience has significant friction:
+
+| Gap | Impact |
+|-----|--------|
+| Multiple networks without clear guidance | Hours debugging wrong network |
+| SDK version requirements buried in migration guide | Full SDK rewrite required |
+| No Lace + CLI integration docs | Built entire web app as workaround |
+| Address prefix differences undocumented | Extensive debugging |
+| "Stable" v2.x SDK only works with deprecated network | Misleading package versions |
+
+**A developer following the main documentation today will end up with incompatible SDK packages for the recommended wallet.**
+
+### What Would Have Helped
+
+1. A prominent "Which network should I use?" section pointing to Preview
+2. Getting-started docs using v3.0.0-alpha packages (not v2.x)
+3. Clear warning that testnet-02 is deprecated/unstable
+4. Lace wallet integration guide for CLI developers
+5. SDK version compatibility matrix
+
+### What's Next
+
+1. Run actual deployment test (CLI or web approach)
+2. Fund wallet via Preview faucet
+3. Deploy contract and verify on indexer
+4. Document successful path for others
+
+---
+
 ## Objective
 
 Deploy a simple "Proof of Authorship" smart contract to Midnight's testnet as an artifact demonstrating:
@@ -9,6 +81,8 @@ Deploy a simple "Proof of Authorship" smart contract to Midnight's testnet as an
 - Using the Midnight SDK for TypeScript-based deployment
 - Working with ZK proof generation
 - Navigating real-world blockchain development challenges
+
+---
 
 ## Timeline
 
@@ -1070,4 +1144,265 @@ npm run deploy
 
 ---
 
-*Last updated: 2026-01-24 (Session 4: SDK upgrade complete, ready for deployment testing)*
+### 2026-01-24: Web Deployment Tool (Session 5)
+
+#### Rationale
+
+Given the complexity of CLI SDK configuration for Preview network and the unresolved type mismatches between wallet SDK v5 and contracts library v3-alpha, built a browser-based deployment tool that leverages Lace Midnight Preview's DApp Connector API.
+
+**Key advantage**: The Lace wallet handles all the network configuration, address encoding, and transaction proving internally. The browser app just needs to connect and call the right APIs.
+
+#### Implementation
+
+Created `web-deploy/` directory with a Vite + React application:
+
+| File | Purpose |
+|------|---------|
+| `src/lib/wallet.ts` | Lace wallet connection via DApp Connector API |
+| `src/lib/providers.ts` | Midnight SDK provider configuration |
+| `src/lib/deploy.ts` | Contract deployment and recordAuthorship call |
+| `src/components/DeployButton.tsx` | UI component with status management |
+| `src/App.tsx` | Main application layout |
+
+**Technical details**:
+- WASM support via `vite-plugin-wasm`
+- Browser polyfills for Buffer, global, process
+- Dynamic contract loading from compiled artifacts
+- Type assertions to bridge SDK version differences
+
+**Build status**: TypeScript compiles, Vite builds successfully (7s build time).
+
+#### Remaining for Web Approach
+
+1. Manual testing with Chrome + Lace Midnight Preview extension
+2. Verify wallet connection flow
+3. Test actual deployment with funded wallet
+4. Confirm contract address and transaction on indexer
+
+---
+
+## Final Status
+
+### Two Paths to Deployment
+
+**Path A: CLI Deployment** (`npm run deploy`)
+- Uses fresh SDK-generated wallet
+- Requires manual faucet funding
+- Type assertions may cause runtime issues
+- Simpler for automation/CI
+
+**Path B: Web Deployment** (`cd web-deploy && npm run dev`)
+- Uses Lace Midnight Preview wallet
+- Wallet already configured for Preview network
+- More user-friendly for one-time deployment
+- Requires Chrome + Lace extension
+
+### What's Actually Working
+
+- Contract source compiles with Compact toolchain 0.26.0
+- TypeScript builds pass for both approaches
+- Preview network endpoints respond (indexer, RPC)
+- Proof server runs with `--network preview` flag
+- Web deployment app starts and renders
+
+### What's Untested
+
+- Actual wallet sync with Preview network
+- Proof generation for recordAuthorship circuit
+- Contract deployment transaction
+- Circuit call transaction
+- Indexer contract state query
+
+### Outstanding Questions
+
+1. Will the type assertions in CLI deployment cause runtime errors?
+2. Does the DApp Connector API work as documented with current Lace version?
+3. Is the proof server compatible with toolchain 0.26.0 contracts?
+
+---
+
+## Reflection: The Real Story
+
+This project started as a simple portfolio piece: deploy a basic smart contract to demonstrate Midnight development capability.
+
+What it became was an exercise in navigating a rapidly evolving blockchain ecosystem with documentation that hasn't kept pace with infrastructure changes.
+
+**The technology is impressive.** Midnight's ZK proofs, the Compact language, and the SDK architecture show sophisticated engineering.
+
+**The developer experience needs work.** Not because the team hasn't tried, but because:
+- Networks changed (testnet-02 → Preview)
+- SDKs evolved (v2.x → v3.0.0-alpha)
+- Documentation didn't fully bridge the gap
+
+**This document exists** to help the next developer who hits the same walls—and hopefully, to provide feedback that improves the official documentation.
+
+### Time Investment Breakdown (Estimated)
+
+| Activity | Time |
+|----------|------|
+| Contract development | 30 min |
+| Initial deploy script | 1 hour |
+| Debugging testnet-02 503 errors | 2 hours |
+| Discovering Preview vs testnet-02 distinction | 2 hours |
+| Researching wallet/seed derivation | 4 hours |
+| SDK version research and upgrade | 3 hours |
+| Building web deployment tool | 2 hours |
+| Documentation (this file) | 2 hours |
+| **Total** | **~16 hours** |
+
+For a contract that has 24 lines of Compact code.
+
+---
+
+---
+
+### 2026-01-24: Web Deployment Testing and Troubleshooting (Session 6)
+
+#### Session Overview
+
+Attempted to test the web deployment tool with Lace Midnight Preview. Made significant progress but hit a version compatibility issue.
+
+#### Accomplishments
+
+1. **Fixed Vite polyfills**: The original polyfill configuration wasn't working. Replaced manual polyfills with `vite-plugin-node-polyfills` package, which properly handles Buffer, process, util, stream, and crypto for browser.
+
+2. **Upgraded DApp Connector API**: Discovered Lace wallet uses API v4.0.0, not v3.0.0. Upgraded `@midnight-ntwrk/dapp-connector-api` from 3.0.0 to 4.0.0-beta.2.
+
+3. **Updated wallet connection for v4 API**: The v4 API has breaking changes:
+   - `connect(networkId: string)` instead of `enable()`
+   - `getConfiguration()` instead of `serviceUriConfig()`
+   - `getShieldedAddresses()` instead of `state()`
+   - Different return types throughout
+
+4. **Wallet connection works**: Successfully connected to Lace Midnight Preview:
+   - Lace prompts for DApp authorization ✅
+   - Connection completes ✅
+   - Configuration retrieved (indexer URIs, proof server) ✅
+   - Shielded addresses retrieved ✅
+
+5. **Fixed private state provider**: Added `walletProvider` with encryption key to `levelPrivateStateProvider` configuration.
+
+6. **Fixed contract loading**: Moved compiled contract from `public/` to `src/contract/` so Vite can bundle it properly.
+
+#### Current Blocker: Compact Runtime Version Mismatch
+
+When clicking "Deploy Contract", we get:
+```
+Version mismatch: compiled code expects 0.9.0, runtime is 0.11.0-rc.1
+```
+
+**Root cause**: The contract was compiled with Compact toolchain 0.26.0 which produces code expecting `@midnight-ntwrk/compact-runtime` version 0.9.0. But we have 0.11.0-rc.1 installed.
+
+**What we tried**:
+
+1. **Downgrade to 0.9.0**: Installing `@midnight-ntwrk/compact-runtime@0.9.0` causes Vite build failures:
+   ```
+   ERROR: This require call is not allowed because the transitive dependency
+   "@midnight-ntwrk/onchain-runtime" contains a top-level await
+   ```
+   The 0.9.0 runtime uses CommonJS `require()` which is incompatible with Vite's esbuild when the dependency has WASM with top-level await.
+
+2. **Exclude from Vite optimization**: Added `@midnight-ntwrk/compact-runtime` and `@midnight-ntwrk/onchain-runtime` to `optimizeDeps.exclude` in vite.config.ts. This didn't fully resolve the bundling issue.
+
+#### Options for Resolution
+
+**Option A: Recompile contract with newer Compact compiler**
+- Need to find which Compact compiler version produces contracts for 0.11.0-rc.1 runtime
+- Run `compact list` to see available versions
+- Recompile with matching version
+- This is likely the cleanest solution
+
+**Option B: Different bundler configuration**
+- Try alternative Vite plugins for WASM/CommonJS interop
+- Or switch to a bundler that handles this better (webpack, esbuild directly)
+- More complex, may create other issues
+
+**Option C: CLI deployment instead**
+- The CLI approach doesn't have the same bundling constraints
+- Node.js can load the CommonJS runtime directly
+- But CLI had its own type mismatch issues earlier
+
+#### Files Modified This Session
+
+| File | Changes |
+|------|---------|
+| `web-deploy/vite.config.ts` | Added `vite-plugin-node-polyfills`, excluded compact-runtime from optimization |
+| `web-deploy/src/polyfills.ts` | Added `setNetworkId("preview")` call |
+| `web-deploy/src/lib/wallet.ts` | Complete rewrite for DApp Connector API v4 |
+| `web-deploy/src/lib/providers.ts` | Updated for v4 API, added walletProvider to private state |
+| `web-deploy/src/lib/deploy.ts` | Changed contract import path to `src/contract/` |
+| `web-deploy/src/components/DeployButton.tsx` | Updated for new WalletConnection interface |
+| `web-deploy/package.json` | Added `vite-plugin-node-polyfills`, upgraded dapp-connector-api, downgraded compact-runtime |
+
+#### Current package.json Dependencies
+
+```json
+{
+  "@midnight-ntwrk/compact-runtime": "^0.9.0",  // Causes bundling issues
+  "@midnight-ntwrk/dapp-connector-api": "^4.0.0-beta.2",
+  "@midnight-ntwrk/midnight-js-contracts": "3.0.0-alpha.11",
+  "@midnight-ntwrk/midnight-js-*": "3.0.0-alpha.11"
+}
+```
+
+#### Key Discovery: DApp Connector API v4 Changes
+
+The v4 API is significantly different from v3. Key changes documented:
+
+```typescript
+// v3 API
+const wallet = await connector.enable();
+const uris = await connector.serviceUriConfig();
+const state = await wallet.state();
+
+// v4 API
+const wallet = await connector.connect("preview");  // Network ID required!
+const config = await wallet.getConfiguration();
+const addresses = await wallet.getShieldedAddresses();
+```
+
+#### Verified Working Components
+
+- ✅ Vite dev server starts (after polyfill fixes)
+- ✅ React app renders
+- ✅ Wallet detection works
+- ✅ Lace authorization popup appears
+- ✅ Wallet connection completes
+- ✅ Service configuration retrieved from Lace
+- ✅ Shielded addresses retrieved
+- ✅ Proof server running with `--network preview`
+
+#### Next Session: Recommended Steps
+
+1. **Check Compact compiler versions**:
+   ```bash
+   compact list
+   ```
+
+2. **Find which compiler produces 0.11.0-rc.1 compatible contracts**:
+   - May need to upgrade compact compiler (if 0.27.0+ available)
+   - Or check documentation for version compatibility matrix
+
+3. **Recompile contract**:
+   ```bash
+   rm -rf contracts/managed
+   npm run compile
+   ```
+
+4. **Update web-deploy contract copy**:
+   ```bash
+   cd web-deploy && npm run predev
+   ```
+
+5. **Test deployment again**
+
+#### Alternatively: Investigate CLI Deployment
+
+If web bundling issues persist, revisit CLI deployment (`src/deploy.ts`):
+- CLI doesn't have Vite/WASM bundling constraints
+- Check if CLI type assertion issues are resolvable
+- May need fresh debugging session
+
+---
+
+*Last updated: 2026-01-24 (Session 6: Web deployment testing - blocked on Compact runtime version mismatch)*

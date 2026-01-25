@@ -3,7 +3,7 @@ import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-pri
 import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
 import { FetchZkConfigProvider } from "@midnight-ntwrk/midnight-js-fetch-zk-config-provider";
 import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client-proof-provider";
-import type { ServiceUriConfig, DAppConnectorWalletAPI } from "@midnight-ntwrk/dapp-connector-api";
+import type { ConnectedAPI, Configuration } from "@midnight-ntwrk/dapp-connector-api";
 
 // Configure for Preview network
 setNetworkId("preview");
@@ -21,50 +21,63 @@ export interface MidnightProviders {
 }
 
 export interface WalletProviderWrapper {
-  // Note: DApp connector returns bech32m encoded strings, not Uint8Array
-  // The contracts library may expect different types, so we use any
-  getCoinPublicKey: () => unknown;
-  getEncryptionPublicKey: () => unknown;
+  getCoinPublicKey: () => string;
+  getEncryptionPublicKey: () => string;
   balanceTx: (tx: unknown, newCoins?: unknown) => Promise<unknown>;
   submitTx: (tx: unknown) => Promise<unknown>;
 }
 
 export async function createProviders(
-  uris: ServiceUriConfig,
-  wallet: DAppConnectorWalletAPI
+  config: Configuration,
+  wallet: ConnectedAPI,
+  coinPublicKey: string,
+  encryptionPublicKey: string
 ): Promise<MidnightProviders> {
-  // Get wallet state for keys
-  const walletState = await wallet.state();
+  // Ensure network ID is set
+  setNetworkId("preview");
+  console.log("Network ID set to preview");
+  console.log("Service config:", config);
 
-  // Create wallet provider wrapper that bridges Lace API to v3 SDK interface
-  // Note: DApp connector returns bech32m encoded strings for keys
-  // The contracts library should handle the type conversion internally
+  // Create wallet provider wrapper that bridges Lace v4 API to contracts library
   const walletProvider: WalletProviderWrapper = {
-    getCoinPublicKey: () => walletState.coinPublicKey as unknown,
-    getEncryptionPublicKey: () => walletState.encryptionPublicKey as unknown,
+    getCoinPublicKey: () => coinPublicKey,
+    getEncryptionPublicKey: () => encryptionPublicKey,
     balanceTx: async (tx: unknown, newCoins?: unknown) => {
-      // Lace wallet handles balancing and proving
-      return wallet.balanceAndProveTransaction(tx as any, newCoins as any);
+      // v4 API uses balanceUnsealedTransaction with serialized tx string
+      console.log("Balancing transaction...");
+      const txString = typeof tx === "string" ? tx : JSON.stringify(tx);
+      const result = await wallet.balanceUnsealedTransaction(txString);
+      return result.tx;
     },
     submitTx: async (tx: unknown) => {
-      return wallet.submitTransaction(tx as any);
+      console.log("Submitting transaction...");
+      const txString = typeof tx === "string" ? tx : JSON.stringify(tx);
+      await wallet.submitTransaction(txString);
+      return { success: true };
     },
   };
+
+  // Use proverServerUri from config, or fallback to localhost
+  const proofServerUri = config.proverServerUri || "http://127.0.0.1:6300";
+  console.log("Using proof server:", proofServerUri);
 
   // Create providers using Lace's service URIs
   const providers: MidnightProviders = {
     privateStateProvider: levelPrivateStateProvider({
       privateStateStoreName: "proof-of-authorship-browser-state",
+      walletProvider: {
+        getEncryptionPublicKey: () => encryptionPublicKey,
+      },
     }),
     publicDataProvider: indexerPublicDataProvider(
-      uris.indexerUri,
-      uris.indexerWsUri
+      config.indexerUri,
+      config.indexerWsUri
     ),
     zkConfigProvider: new FetchZkConfigProvider<CircuitId>(
       window.location.origin,
       fetch.bind(window)
     ),
-    proofProvider: httpClientProofProvider(uris.proverServerUri),
+    proofProvider: httpClientProofProvider(proofServerUri),
     walletProvider: walletProvider,
     midnightProvider: walletProvider,
   };

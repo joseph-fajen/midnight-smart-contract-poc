@@ -116,11 +116,16 @@ export function DeployButton() {
     setDeployProgress("Initializing...");
 
     try {
-      const providers = await createProviders(connection.uris, connection.wallet);
+      const providers = await createProviders(
+        connection.config,
+        connection.wallet,
+        connection.coinPublicKey,
+        connection.encryptionPublicKey
+      );
 
       const deployResult = await deployProofOfAuthorship(
         providers,
-        connection.address,
+        connection.shieldedAddress,
         (progress: DeployProgress) => {
           setDeployProgress(progress.message);
         }
@@ -173,7 +178,7 @@ export function DeployButton() {
           <div style={styles.address}>
             <span style={styles.label}>Connected:</span>
             <span style={styles.value}>
-              {connection.address.slice(0, 20)}...{connection.address.slice(-8)}
+              {connection.shieldedAddress.slice(0, 20)}...{connection.shieldedAddress.slice(-8)}
             </span>
           </div>
           <button
