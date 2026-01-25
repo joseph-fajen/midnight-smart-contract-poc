@@ -1,135 +1,212 @@
-# Proof of Authorship - Midnight Smart Contract
+# Midnight Smart Contract POC: A Developer Experience Journal
 
-A proof-of-concept smart contract deployed on the Midnight blockchain testnet. This project demonstrates the ability to write, compile, and deploy a Midnight smart contract using zero-knowledge proof technology.
+> **Status**: Deployment not achieved after 8+ hours.
+>
+> This repository documents one developer's journey attempting to deploy a simple smart contract to the Midnight blockchain. I'm sharing this in the spirit of helpfulness, hoping these observations may be useful to the Midnight team.
 
-## What This Demonstrates
+## About This Project
 
-- Writing smart contracts in Compact (Midnight's DSL)
-- Using the Midnight SDK for TypeScript-based deployment
-- Working with ZK proof generation via the proof server
-- Interacting with Midnight's testnet infrastructure
+I'm a technical writer with deep experience in developer documentation. I gave myself approximately 8 hours to see how far I could get deploying a simple "Proof of Authorship" contract to Midnight's Preview network.
 
-## Prerequisites
+**My goal** was to establish a workflow and document the experience from a newcomer's perspective. I approached this with genuine enthusiasm for the technology and wanted to understand the current developer journey.
 
-- Node.js 20+
-- Docker Desktop (for the proof server)
-- Compact compiler (`compact --version` should return 0.2.0+)
+**The outcome**: I didn't achieve deployment, but I learned a great deal. The challenges I encountered may reflect gaps in documentation, the rapidly evolving nature of the SDK, or things I simply missed. I'm sharing this experience in case it's helpful.
 
-### Installing the Compact Compiler
+**Important caveats**:
+- This reflects one developer's 8-hour experience, not a comprehensive evaluation
+- I may have missed documentation or solutions that would have helped
+- The SDK is actively evolving, and some issues may already be addressed
+- I don't have insider knowledge of the team's roadmap or priorities
 
-```bash
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/midnightntwrk/compact/releases/download/compact-v0.2.0/compact-installer.sh | sh
+## What I Found Impressive
 
-# Then install/update the toolchain
-compact update 0.26.0
+Before diving into challenges, I want to acknowledge what works well:
+
+- **The Compact language and compiler** worked smoothly - I encountered no obstacles there
+- **The ZK technology** is what drew me to Midnight - I'm fascinated by its promise and eager to gain hands-on experience
+- **The Discord community** was responsive and genuinely helpful
+- **Core infrastructure works** - the indexer, RPC, proof server, and wallet connection all functioned correctly
+- **Active development** - the SDK is clearly evolving rapidly
+
+## Current Status
+
+| Component | Status |
+|-----------|--------|
+| Smart Contract | Compiled (24 lines of Compact) |
+| CLI Deployment (`src/deploy.ts`) | Builds, untested at runtime |
+| Web Deployment (`web-deploy/`) | Wallet connects, deploy blocked |
+| **Actual Deployment** | **Not achieved** |
+
+### What Worked
+
+- Contract compilation with Compact toolchain 0.26.0
+- Preview network connectivity (indexer, RPC, proof server)
+- Lace Midnight Preview wallet connection via DApp Connector API v4
+- Wallet funding via Preview faucet
+
+### Where I Got Stuck
+
+**SDK Version Incompatibility**: The Compact toolchain 0.26.0 produces contracts for `compact-runtime` 0.9.0 (CommonJS), but browser deployment requires 0.11.0-rc.1 (ESM). These versions have breaking API changes.
+
+I may have missed a workaround, but I couldn't find a path forward after exploring several options.
+
+## My Journey
+
+### Approach 1: CLI Deployment (Initial)
+
+Started with a Node.js deployment script (`src/deploy.ts`) following the documentation. Challenges I encountered:
+
+1. The getting-started docs pointed to **testnet-02**, which returned 503 errors
+2. Discovered (via Discord) that Lace wallet uses the **Preview network**
+3. Encountered SDK version mismatches between wallet and contracts libraries
+
+### Approach 2: Web Deployment (Pivot)
+
+Built a browser-based deployment tool (`web-deploy/`) to leverage Lace's built-in network configuration:
+
+![Web app connected to Lace wallet](img/web-app-connected.png)
+
+*The web app successfully connects to Lace Midnight Preview and retrieves wallet addresses.*
+
+**Progress made:**
+- Wallet connection works
+- Network configuration retrieved from Lace
+- Shielded addresses retrieved
+
+**Where I got stuck:**
+```
+Error: expected instance of _ChargedState
 ```
 
-## Quick Start
+The contract compiled for runtime 0.9.0 couldn't run on runtime 0.11.0-rc.1 due to API changes between versions.
 
-### 1. Install dependencies
+## What I Observed
 
-```bash
-npm install
-```
+These are observations from my experience, not definitive assessments:
 
-### 2. Compile the contract
+| Observation | My Experience |
+|-------------|---------------|
+| Network guidance | I initially targeted testnet-02 before learning Preview is current |
+| SDK version coordination | I spent significant time on version mismatches |
+| Browser deployment | I couldn't find a working configuration for Vite |
+| DApp Connector API | I found v4 differs significantly from documented v3 |
 
-```bash
-npm run compile
-```
+In my experience, most of the 8 hours was spent on SDK and configuration challenges rather than the contract itself. There may be solutions I didn't discover.
 
-### 3. Build the TypeScript
+## Documentation
 
-```bash
-npm run build
-```
+Detailed documentation of my entire journey:
 
-### 4. Start the proof server
-
-In a separate terminal:
-
-```bash
-docker run -p 6300:6300 midnightnetwork/proof-server midnight-proof-server
-```
-
-### 5. Deploy
-
-```bash
-npm run deploy
-```
-
-The script will:
-- Generate a new wallet seed (or accept an existing one)
-- Display your wallet address for funding
-- Wait for you to fund the wallet via the [testnet faucet](https://midnight.network/test-faucet)
-- Deploy the contract
-- Call `recordAuthorship` to store the authorship data on-chain
-- Save deployment details to `deployment.json`
-
-### Resuming with an Existing Seed
-
-If deployment was interrupted (e.g., testnet outage), you can resume with your saved seed:
-
-```bash
-npm run deploy
-```
-
-When prompted:
-1. Answer `y` to "Do you have a wallet seed?"
-2. Paste your 64-character hex seed
-3. The script will restore your wallet and continue from where you left off
-
-**Troubleshooting**: If you see repeated "Timed out trying to connect" messages, the testnet may be down. Press `Ctrl+C` to exit and try again later. Check the [Midnight Discord](https://discord.com/invite/midnightnetwork) for network status.
-
-## Verification
-
-After deployment, verify the contract state:
-
-1. Check `deployment.json` for the contract address
-2. Query the Midnight indexer at `https://indexer.testnet-02.midnight.network/api/v1/graphql`
-
-Example GraphQL query:
-```graphql
-query {
-  contractState(address: "<CONTRACT_ADDRESS>") {
-    address
-    data
-  }
-}
-```
-
-## Contract Details
-
-The contract stores four public fields:
-
-| Field | Description |
-|-------|-------------|
-| `authorName` | "Joseph Fajen" |
-| `timestamp` | ISO 8601 deployment timestamp |
-| `contractHash` | SHA-256 hash of the contract source |
-| `statement` | "Deployed by Joseph Fajen as a proof of concept exercise" |
-
-See [PRD.md](PRD.md) for full requirements and background.
+- **[Executive Summary](docs/developer-experience-executive-summary.md)** - 3-minute read with key observations
+- **[Full Developer Experience](docs/my-developer-experience.md)** - Complete chronological account (1600+ lines)
 
 ## Project Structure
 
 ```
+midnight-smart-contract-poc/
 ├── contracts/
-│   └── proof-of-authorship.compact   # Smart contract source
+│   ├── proof-of-authorship.compact   # Smart contract (24 lines)
+│   └── managed/                       # Compiled artifacts
 ├── src/
-│   └── deploy.ts                     # Deployment script
-├── package.json
-├── tsconfig.json
-├── PRD.md                            # Product requirements
-└── deployment.json                   # Generated after deployment
+│   └── deploy.ts                      # CLI deployment script
+├── web-deploy/                        # Browser deployment tool
+│   ├── src/
+│   │   ├── lib/                       # Wallet, providers, deploy logic
+│   │   └── components/                # React UI
+│   └── vite.config.ts
+├── docs/                              # Developer experience documentation
+├── img/                               # Screenshots
+├── PRD.md                             # Requirements document
+└── CLAUDE.md                          # Project rules
+```
+
+## The Contract
+
+A simple "Proof of Authorship" contract storing four public fields:
+
+```compact
+pragma language_version 0.18;
+
+export ledger authorName: Opaque<"string">;
+export ledger timestamp: Opaque<"string">;
+export ledger contractHash: Bytes<32>;
+export ledger statement: Opaque<"string">;
+
+export circuit recordAuthorship(
+  author: Opaque<"string">,
+  time: Opaque<"string">,
+  hash: Bytes<32>,
+  msg: Opaque<"string">
+): [] {
+  authorName = disclose(author);
+  timestamp = disclose(time);
+  contractHash = disclose(hash);
+  statement = disclose(msg);
+}
+```
+
+## Quick Start (If You Want to Try)
+
+### Prerequisites
+
+- Node.js 20+
+- Docker Desktop
+- Compact compiler (toolchain 0.26.0)
+- Lace Midnight Preview browser extension
+
+### CLI Approach
+
+```bash
+# Install dependencies
+npm install
+
+# Compile contract
+npm run compile
+
+# Start proof server (Preview network)
+docker run -p 6300:6300 midnightnetwork/proof-server midnight-proof-server --network preview
+
+# Build and deploy
+npm run build
+npm run deploy
+```
+
+### Web Approach
+
+```bash
+cd web-deploy
+npm install
+npm run dev
+# Open http://localhost:5173 in Chrome with Lace Midnight Preview
 ```
 
 ## Network Configuration
 
 | Service | Endpoint |
 |---------|----------|
-| Indexer | https://indexer.testnet-02.midnight.network/api/v1/graphql |
-| RPC Node | https://rpc.testnet-02.midnight.network |
-| Proof Server | http://localhost:6300 |
-| Faucet | https://midnight.network/test-faucet |
+| Indexer | https://indexer.preview.midnight.network/api/v3/graphql |
+| RPC Node | https://rpc.preview.midnight.network |
+| Proof Server | http://localhost:6300 (with `--network preview`) |
+| Faucet | https://faucet.preview.midnight.network/ |
+
+**Note**: I found that Lace Midnight Preview uses the Preview network, which differs from testnet-02 referenced in some documentation.
+
+## Observations That May Be Helpful
+
+Based on my experience, these are areas where I encountered friction. The team may already be aware of these or have solutions I didn't find:
+
+1. **Network clarity** - I initially followed docs to testnet-02 before learning Preview is current
+2. **Version coordination** - A compatibility matrix (toolchain → runtime → network) would have helped me
+3. **Browser deployment** - I couldn't find guidance for Vite/Webpack bundler configuration
+4. **Module format** - The CommonJS runtime didn't work with modern bundlers in my testing
+5. **DApp Connector API** - I found v4 significantly different from v3; migration notes would have helped
+
+I offer these observations humbly - there may be documentation or solutions I missed, and the team surely has context I lack.
+
+## Author
+
+Joseph Fajen - January 2026
+
+---
+
+*I'm sharing this project in the spirit of friendly collaboration. As someone who works in developer documentation, I know how challenging it is to keep docs current with rapidly evolving software. I hope these observations from a newcomer's perspective might be useful.*

@@ -1,4 +1,4 @@
-# Developer Experience Report: Executive Summary
+# Developer Experience Journal: Executive Summary
 
 **Project**: Deploy a 24-line "Proof of Authorship" smart contract to Midnight Preview network
 **Time invested**: 8+ hours
@@ -9,11 +9,28 @@
 
 ---
 
-## Bottom Line
+## About This Document
 
-A simple smart contract deployment that should take 1-2 hours took 8+ hours and was **never completed** due to SDK version incompatibilities and documentation gaps.
+This summarizes one developer's experience attempting to deploy a simple smart contract to Midnight. I'm sharing this in the spirit of helpfulness, recognizing that:
 
-The contract itself took 30 minutes to write. The remaining 7.5+ hours were spent debugging network configuration, SDK versions, and bundler incompatibilities.
+- This reflects a single 8-hour experience, not a comprehensive evaluation
+- I may have missed documentation or solutions that would have helped
+- The SDK is actively evolving, and some challenges may already be addressed
+- The team has context and priorities I'm not aware of
+
+I approached this project with genuine enthusiasm for Midnight's technology and want to offer these observations in case they're useful.
+
+---
+
+## What I Found Impressive
+
+Before discussing challenges, I want to highlight what works well:
+
+- **The Compact language and compiler** worked smoothly - I encountered no obstacles there
+- **The ZK technology** is what drew me to Midnight - I'm fascinated by its promise
+- **Discord community** was responsive and helpful
+- **Core infrastructure** (indexer, RPC, proof server, wallet) all functioned correctly
+- **Active development** - the SDK is clearly evolving
 
 ---
 
@@ -27,63 +44,77 @@ The contract itself took 30 minutes to write. The remaining 7.5+ hours were spen
 | Lace wallet connection (DApp Connector API v4) | ✅ |
 | Wallet funding via Preview faucet | ✅ |
 
+### Web App Successfully Connected to Lace Wallet
+
+![Web app connected to Lace wallet](../img/web-app-connected.png)
+
+*The web deployment tool connects successfully, retrieves wallet addresses, and is ready to deploy - but deployment fails due to runtime version mismatch.*
+
 ---
 
-## What Blocked Deployment
+## Where I Got Stuck
 
-### 1. Documentation Points to Deprecated Network
+### 1. Network Discovery
 
-The getting-started documentation references **testnet-02**, which returns 503 errors. The Lace Midnight Preview wallet uses the **Preview network** - a completely different network requiring different SDK packages.
+The getting-started documentation references **testnet-02**, which returned 503 errors when I tried it. Through Discord, I learned that Lace Midnight Preview uses the **Preview network** - a different network requiring different SDK packages.
 
-**Impact**: Hours spent debugging before discovering networks are different.
+**My experience**: Several hours spent before understanding the network distinction.
 
-### 2. SDK Version Matrix Incompatibility
+### 2. SDK Version Coordination
 
-| Component | Version | Issue |
-|-----------|---------|-------|
+| Component | Version | What I Observed |
+|-----------|---------|-----------------|
 | Compact toolchain | 0.26.0 (latest) | Produces contracts for runtime 0.9.0 |
-| compact-runtime 0.9.0 | CommonJS | Fails in Vite (WASM + top-level await) |
-| compact-runtime 0.11.0-rc.1 | ESM | Breaking API changes, incompatible with 0.26.0 contracts |
+| compact-runtime 0.9.0 | CommonJS | Failed in Vite (WASM + top-level await) |
+| compact-runtime 0.11.0-rc.1 | ESM | Breaking API changes from 0.9.0 |
 
-**The dilemma**: Browser deployment requires ESM (0.11.0), but the contract requires CommonJS runtime (0.9.0). No solution exists.
+**The challenge I couldn't resolve**: Browser deployment seemed to require ESM (0.11.0), but my contract required the 0.9.0 runtime. I couldn't find a compatible configuration.
 
-### 3. Breaking API Changes Between Runtime Versions
+### 3. API Changes Between Runtime Versions
 
-Between compact-runtime 0.9.0 and 0.11.0-rc.1:
+Between compact-runtime 0.9.0 and 0.11.0-rc.1, I observed:
 - `CompactTypeOpaqueString` changed from class to const
 - `CompactTypeBoolean` changed from class to const
 - `ContractState` internal structure changed
 - `ChargedState` type checking added
 
-Contracts compiled for 0.9.0 **cannot run** on 0.11.0-rc.1.
+My contract compiled for 0.9.0 couldn't run on 0.11.0-rc.1.
 
-### 4. No Upgrade Path Available
+### The Final Error
+
+![ChargedState error blocking deployment](../img/web-app-chargedstate-error.png)
+
+*When clicking "Deploy Contract", the runtime version mismatch causes `expected instance of _ChargedState` error.*
+
+### 4. No Upgrade Path I Could Find
 
 ```bash
 compact list        # Shows 0.26.0 as latest
 compact update 0.27.0  # "Couldn't find specified version"
 ```
 
-No newer Compact compiler exists that produces contracts compatible with the ESM runtime.
+I couldn't find a newer Compact compiler that might produce contracts for the 0.11.0 runtime. There may be one I missed.
 
 ---
 
-## Documentation Gaps Identified
+## Documentation Observations
 
-| Gap | Impact |
-|-----|--------|
-| No "which network to use" guidance | Hours on wrong network |
-| Getting-started uses v2.x SDK (deprecated) | Incompatible with Lace wallet |
-| No Compact toolchain ↔ runtime version matrix | Hours debugging version mismatches |
-| No browser deployment guide | Blocked entirely by bundler issues |
-| DApp Connector API v4 undocumented | Had to reverse-engineer from Lace |
-| Migration guide not linked from getting-started | Discovered late in process |
+Areas where I encountered friction (there may be solutions I didn't find):
+
+| Observation | My Experience |
+|-------------|---------------|
+| Network guidance | I initially targeted testnet-02 before learning Preview is current |
+| SDK versions in getting-started | The versions I found led to Lace incompatibility |
+| Toolchain ↔ runtime coordination | I spent significant time on version mismatches |
+| Browser deployment | I couldn't find guidance for Vite/Webpack |
+| DApp Connector API v4 | I found it differs from v3; had to experiment |
+| Migration guide discoverability | I found it late in my process |
 
 ---
 
-## Top 3 Questions for Documentation Team
+## Questions That Would Have Helped Me
 
-These questions would surface critical missing information:
+If I had asked these questions at the start, it might have saved significant time:
 
 1. **"Which version of compact-runtime is compatible with contracts compiled by Compact toolchain 0.26.0?"**
 
@@ -93,35 +124,19 @@ These questions would surface critical missing information:
 
 ---
 
-## Recommendations
+## Observations That May Be Helpful
 
-### Critical (Blocking developers now)
+Based on my experience, these are areas where guidance would have helped me. The team may already be aware of these or working on solutions:
 
-1. **Update getting-started docs** to use Preview network and v3.0.0-alpha SDK packages
-2. **Publish SDK version compatibility matrix** (toolchain → runtime → network)
-3. **Add prominent warning** that testnet-02 is deprecated
+**Areas where I encountered friction:**
 
-### High Priority
+1. **Network clarity** - Guidance on which network to target would have saved me time
+2. **Version coordination** - A compatibility matrix (toolchain → runtime → network) would have helped
+3. **Browser deployment** - Guidance for Vite/Webpack configuration
+4. **Module format** - The CommonJS runtime didn't work with modern bundlers in my testing
+5. **DApp Connector API** - Notes on v4 changes from v3
 
-4. **Publish ESM-only runtime packages** (CommonJS breaks modern bundlers)
-5. **Create browser deployment guide** for Vite/Webpack
-6. **Document DApp Connector API v4** (significantly different from v3)
-
-### Medium Priority
-
-7. **Consider runtime version warnings** instead of hard errors
-8. **Provide pre-bundled browser package** for compact-runtime
-
----
-
-## The Positive
-
-Despite the blockers:
-
-- **The technology is impressive** - Compact language and ZK proofs work well
-- **Community is helpful** - Discord support was responsive
-- **Progress is being made** - SDK is actively evolving
-- **Most infrastructure works** - Network, wallet connection, proof server all functional
+I offer these observations humbly - documentation is challenging, especially for rapidly evolving projects, and there may be solutions I simply didn't find.
 
 ---
 
@@ -141,17 +156,11 @@ Despite the blockers:
 
 ---
 
-## Conclusion
+## Closing Thoughts
 
-**The contract was never the hard part. The hard part was getting the SDK stack to work together.**
+In my experience, most of the 8 hours was spent on SDK and configuration challenges rather than the contract itself. The technology underlying Midnight is exciting to me, and I found the Discord community genuinely helpful.
 
-A developer following the current documentation will:
-1. Target the wrong network (testnet-02 instead of Preview)
-2. Use incompatible SDK versions (v2.x instead of v3.0.0-alpha)
-3. Be unable to deploy via browser due to runtime/bundler incompatibilities
-4. Spend 8+ hours debugging issues that documentation would prevent
-
-The Midnight technology is sophisticated and promising. The developer onboarding experience needs to catch up.
+I'm sharing this experience in case it's useful. As someone who works in developer documentation, I understand how difficult it is to keep docs current with rapidly evolving software. I hope these observations from a newcomer's perspective might provide a helpful data point.
 
 ---
 

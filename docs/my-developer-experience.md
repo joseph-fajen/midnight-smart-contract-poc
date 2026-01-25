@@ -1,6 +1,21 @@
 # My Developer Experience: Midnight Smart Contract POC
 
-A chronological account of building and deploying a proof-of-authorship smart contract on the Midnight blockchain testnet.
+A chronological account of attempting to deploy a proof-of-authorship smart contract on the Midnight blockchain.
+
+---
+
+## Preface
+
+This document is a detailed journal of my experience as a developer new to Midnight. I'm sharing it in the spirit of helpfulness, with some important context:
+
+- **This is one person's experience** - not a comprehensive evaluation of Midnight
+- **I may have missed things** - there may be documentation or solutions I didn't find
+- **The SDK is actively evolving** - some challenges may already be addressed
+- **I lack insider context** - the team has priorities and knowledge I'm not aware of
+
+I approached this project with genuine enthusiasm for Midnight's technology. The Compact language and compiler worked smoothly for me, the ZK technology is what drew me to this project, and the Discord community was genuinely helpful. I'm documenting both successes and challenges because I believe honest feedback, offered constructively, can be useful.
+
+As someone who works in developer documentation, I understand how difficult it is to keep docs current with rapidly evolving software. I offer these observations as a friendly data point from a newcomer's perspective.
 
 ---
 
@@ -10,7 +25,7 @@ A chronological account of building and deploying a proof-of-authorship smart co
 
 Deploy the simplest possible smart contract to Midnight's testnet: a "Proof of Authorship" contract that stores four public fields (author name, timestamp, contract hash, and a statement). No complex ZK logic, no private data, no token transfers. Just write, compile, deploy, done.
 
-**Estimated time**: A few hours, maybe a day.
+**My expectation**: A few hours, maybe a day.
 
 **Actual time invested**: 8+ hours. **Deployment not achieved.**
 
@@ -31,9 +46,9 @@ Two parallel deployment approaches were built, both blocked by SDK issues:
 
 **Deployment was never achieved despite 8+ hours of effort.**
 
-### Why This Took So Long
+### Challenges I Encountered
 
-The core issue wasn't the contract or the code—it was **navigating undocumented network transitions and SDK version incompatibilities**:
+In my experience, the core challenge wasn't the contract or the code—it was navigating network transitions and SDK version coordination:
 
 1. **Documentation points to testnet-02**, which has availability issues (503 errors on indexer)
 2. **Lace Midnight Preview wallet uses "Preview" network**, which is different from testnet-02
@@ -45,20 +60,20 @@ The core issue wasn't the contract or the code—it was **navigating undocumente
 
 The contract itself took 30 minutes. The SDK/network/bundler debugging took 8+ hours.
 
-### Key Insight: Documentation Opportunity
+### Areas Where I Encountered Friction
 
-Midnight is a sophisticated ZK blockchain with impressive technology. But the developer onboarding experience has significant friction:
+Midnight is a ZK blockchain with technology I find exciting and want to explore further. These are areas where I spent significant time (there may be solutions I didn't find):
 
-| Gap | Impact |
-|-----|--------|
-| Multiple networks without clear guidance | Hours debugging wrong network |
-| SDK version requirements buried in migration guide | Full SDK rewrite required |
-| No Lace + CLI integration docs | Built entire web app as workaround |
-| Address prefix differences undocumented | Extensive debugging |
-| "Stable" v2.x SDK only works with deprecated network | Misleading package versions |
-| No browser deployment guide | Vite/bundler incompatibilities undocumented |
-| No Compact toolchain ↔ runtime version matrix | Hours debugging version mismatches |
-| CommonJS runtime incompatible with modern bundlers | Browser deployment blocked entirely |
+| Observation | My Experience |
+|-------------|---------------|
+| Network guidance | I initially targeted testnet-02 before learning Preview is current |
+| SDK version discovery | I found the migration guide late in my process |
+| Lace + CLI integration | I built a web app as an alternative approach |
+| Address prefix differences | Required debugging to understand |
+| SDK version coordination | The v2.x packages didn't work with Lace in my testing |
+| Browser deployment | I couldn't find guidance for Vite/Webpack |
+| Toolchain ↔ runtime coordination | I spent significant time on version mismatches |
+| Module format | The CommonJS runtime didn't work with modern bundlers in my testing |
 
 **A developer following the main documentation today will:**
 1. End up with incompatible SDK packages for the recommended wallet
@@ -79,7 +94,7 @@ Midnight is a sophisticated ZK blockchain with impressive technology. But the de
 
 ### Top 3 Questions for Midnight "Ask AI" Chatbot
 
-Based on everything we learned, these questions would surface the most critical missing documentation:
+Based on everything I learned, these questions would surface the most critical missing documentation:
 
 **Question 1: "Which version of compact-runtime is compatible with contracts compiled by Compact toolchain 0.26.0?"**
 
@@ -87,7 +102,7 @@ Based on everything we learned, these questions would surface the most critical 
 
 **Question 2: "How do I deploy a Midnight smart contract from a browser using Vite? The compact-runtime package has CommonJS/WASM loading issues with esbuild."**
 
-*Why this matters:* This specific technical issue blocked browser deployment entirely. Either (a) there's a workaround we didn't find, (b) there's a browser-compatible package we didn't know about, or (c) this is a known limitation that should be documented.
+*Why this matters:* This specific technical issue blocked browser deployment in my experience. Either (a) there's a workaround I didn't find, (b) there's a browser-compatible package I didn't know about, or (c) this is a known limitation.
 
 **Question 3: "I'm a new developer starting today. Should I use testnet-02 or Preview network, and which SDK package versions do I need?"**
 
@@ -100,8 +115,8 @@ Based on everything we learned, these questions would surface the most critical 
 1. ~~Run actual deployment test (CLI or web approach)~~ Blocked
 2. ~~Fund wallet via Preview faucet~~ ✅ Completed
 3. ~~Deploy contract and verify on indexer~~ Not reached
-4. **Share this documentation with Midnight team**
-5. Revisit when SDK version matrix issues are resolved
+4. **Share this documentation with Midnight team** (in case it's helpful)
+5. Revisit when I learn more or SDK evolves
 
 ---
 
@@ -509,7 +524,7 @@ Ran all 5 derivation methods with the Lace mnemonic:
 
 #### Remaining Unknowns
 
-1. **BIP-39 passphrase** - We used empty string `""`. Does Lace use a passphrase?
+1. **BIP-39 passphrase** - I used empty string `""`. Does Lace use a passphrase?
 2. **Network config affects key derivation** - The `_test1` vs `_preview1` might indicate the SDK derives keys differently per network, not just encodes addresses differently
 3. **Different derivation indices** - Lace might use different account, role, or key index values
 
@@ -576,7 +591,7 @@ Fetched the migration guide at `https://docs.midnight.network/how-to/migrate-fro
 
 #### The Real Problem
 
-We followed documentation that was written for testnet-02, but:
+I followed documentation that was written for testnet-02, but:
 1. testnet-02 indexer is down (503 errors)
 2. Lace Midnight Preview uses the Preview network
 3. Preview network requires completely different SDK packages
@@ -600,9 +615,9 @@ We followed documentation that was written for testnet-02, but:
 
 ---
 
-## Documentation Gaps Observed
+## Documentation Observations
 
-Throughout this journey, several gaps in the official Midnight documentation became apparent. These observations may be valuable for improving developer onboarding.
+Throughout this journey, I encountered areas where I wished I had more guidance. These are observations from my experience - there may be documentation I missed, and I recognize the team has context I lack.
 
 ### What the Docs Cover Well
 
@@ -611,12 +626,12 @@ Throughout this journey, several gaps in the official Midnight documentation bec
 - Deployment flow structure
 - testnet-02 endpoint configuration
 
-### What's Unclear or Missing
+### Areas Where I Needed More Guidance
 
-1. **Multiple testnets exist without clear guidance**
-   - Docs reference testnet-02, but Lace Midnight Preview connects to a different "Preview" network
-   - This distinction isn't prominently explained anywhere
-   - A developer following the docs ends up on the wrong network for Lace integration
+1. **Network selection**
+   - I found that docs reference testnet-02, but Lace Midnight Preview connects to a different "Preview" network
+   - This distinction wasn't clear to me initially
+   - Following the docs led me to testnet-02 before I learned about the Preview network
 
 2. **No clear path for Lace wallet + CLI integration**
    - The SDK expects 32-byte hex seeds
@@ -808,7 +823,7 @@ The issue is **bech32 address prefix configuration**, not `NetworkId`:
 - SDK defaults to legacy testnet prefix (`_test1`)
 - Preview network uses a different prefix (`_preview1`)
 
-### What We're Waiting For
+### What I'm Waiting For
 
 Amy.ether (Discord) is providing the specific SDK configuration needed to:
 1. Use Preview's bech32 prefix scheme
@@ -1258,7 +1273,7 @@ This project started as a simple learning exercise: deploy a basic smart contrac
 
 What it became was an exercise in navigating a rapidly evolving blockchain ecosystem with documentation that hasn't kept pace with infrastructure changes.
 
-**The technology is impressive.** Midnight's ZK proofs, the Compact language, and the SDK architecture show sophisticated engineering.
+**The technology is exciting.** Midnight's approach to ZK proofs is what drew me to this project, and I'm eager to explore it further.
 
 **The developer experience needs work.** Not because the team hasn't tried, but because:
 - Networks changed (testnet-02 → Preview)
@@ -1306,6 +1321,22 @@ Attempted to test the web deployment tool with Lace Midnight Preview. Made signi
    - Connection completes ✅
    - Configuration retrieved (indexer URIs, proof server) ✅
    - Shielded addresses retrieved ✅
+
+   **Lace wallet authorization flow:**
+
+   ![Lace authorize DApp screen](../img/lace-authorize-dapp.png)
+
+   *Lace prompts for DApp authorization when the web app requests wallet connection.*
+
+   ![Lace connection confirmation](../img/lace-connection-confirm.png)
+
+   *User can choose "Always" or "Only once" for the connection.*
+
+   **Web app in connected state:**
+
+   ![Web app connected to wallet](../img/web-app-connected.png)
+
+   *After authorization, the app shows the connected wallet address and "Deploy Contract" button.*
 
 5. **Fixed private state provider**: Added `walletProvider` with encryption key to `levelPrivateStateProvider` configuration.
 
@@ -1486,6 +1517,10 @@ Error: expected instance of _ChargedState
 at Contract.initialState
 ```
 
+![ChargedState error in browser](../img/web-app-chargedstate-error.png)
+
+*The final blocker: `expected instance of _ChargedState` error when attempting deployment.*
+
 **Root cause**: The internal state management types are completely different between 0.9.0 and 0.11.0-rc.1. The contract's `initialState` method creates `new __compactRuntime.ContractState()` and uses it in ways that are incompatible with the new runtime's type system.
 
 The `ChargedState` check is an `instanceof` check that fails because the classes are from different runtime versions - even if they have the same name, they're different class identities.
@@ -1591,19 +1626,19 @@ Based on 8+ hours of hands-on developer experience:
 
 3. **Progress is being made**: The SDK is actively evolving (alpha → beta → stable).
 
-4. **This documentation will help others**: The detailed troubleshooting here should save future developers significant time.
+4. **I hope this documentation helps others**: The detailed troubleshooting here may save future developers time if they encounter similar issues.
 
 #### Conclusion
 
-This project became an extended debugging session due to:
-1. Documentation pointing to deprecated network
-2. SDK version incompatibilities between packages
+In my experience, this project became an extended debugging session due to challenges with:
+1. Discovering which network to target
+2. Coordinating SDK versions between packages
 3. Browser bundler constraints with WASM loading
-4. Breaking API changes between runtime versions
+4. API changes between runtime versions
 
-The Midnight technology itself is impressive. The developer experience needs significant improvement in documentation and SDK packaging to match the sophistication of the underlying technology.
+The Midnight technology is exciting to me, and the core infrastructure worked well. I spent most of my time on SDK and configuration challenges rather than the contract itself. I'm sharing this experience in case it's helpful to others or to the team.
 
-**The contract was never the hard part. The hard part was getting the SDK stack to work together.**
+I approached this with genuine enthusiasm for the technology and offer these observations constructively.
 
 ---
 
@@ -1622,4 +1657,8 @@ For future developers hitting similar issues, here are the key error messages an
 
 ---
 
-*Last updated: 2026-01-25 (Session 7: Deep dive into SDK incompatibility - deployment blocked by version matrix)*
+*Last updated: 2026-01-25 (Session 7: Deep dive into SDK incompatibility)*
+
+---
+
+*I'm sharing this detailed journal in the spirit of friendly collaboration. I hope it provides useful perspective from a developer new to the Midnight ecosystem.*
