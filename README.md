@@ -35,8 +35,8 @@ Before diving into challenges, I want to acknowledge what works well:
 | Component | Status |
 |-----------|--------|
 | Smart Contract | Compiled (24 lines of Compact) |
-| CLI Deployment (`src/deploy.ts`) | Builds, untested at runtime |
-| Web Deployment (`web-deploy/`) | Wallet connects, deploy blocked |
+| CLI Deployment (`src/deploy.ts`) | Initial attempts blocked by network/SDK issues; rewritten for v3, then pivoted to web |
+| Web Deployment (`web-deploy/`) | Wallet connects, deploy blocked by runtime version mismatch |
 | **Actual Deployment** | **Not achieved** |
 
 ### What Worked
