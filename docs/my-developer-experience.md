@@ -2,6 +2,8 @@
 
 A chronological account of attempting to deploy a proof-of-authorship smart contract on the Midnight blockchain.
 
+*For a 3-minute overview, see the [Executive Summary](./developer-experience-executive-summary.md).*
+
 ---
 
 ## Preface
@@ -1657,7 +1659,55 @@ For future developers hitting similar issues, here are the key error messages an
 
 ---
 
-*Last updated: 2026-01-25 (Session 7: Deep dive into SDK incompatibility)*
+## Appendix: Verification of `create-mn-app` Tool
+
+After completing my troubleshooting, I realized I hadn't tried the `create-mn-app` CLI tool mentioned in the documentation. I wanted to verify whether this tool might have provided a working configuration that I missed.
+
+### What I Tested
+
+```bash
+npx create-mn-app test-mn-app
+# Selected "Hello World" template
+```
+
+The tool (v0.3.7) successfully scaffolded a project with a nice developer experience—it generated a wallet seed, compiled the contract, and provided helpful CLI commands.
+
+### What I Found
+
+The scaffolded project uses the same configuration I discovered doesn't work with Lace Midnight Preview:
+
+| Component | Generated Value | What Preview Needs |
+|-----------|-----------------|-------------------|
+| `midnight-js-contracts` | 2.0.2 | 3.0.0-alpha.11 |
+| `compact-runtime` | ^0.8.1 | 0.9.0+ (or 0.11.0 for ESM) |
+| `ledger` | ^4.0.0 | `ledger-v6`: 6.1.0-alpha.6 |
+| Network endpoints | `testnet-02.midnight.network` | `preview.midnight.network` |
+| Proof server flag | `--network testnet` | `--network preview` |
+| Faucet URL | `midnight.network/test-faucet` | `faucet.preview.midnight.network` |
+
+The `environment.ts` file has testnet-02 endpoints hardcoded:
+
+```typescript
+testnet: {
+  indexer: "https://indexer.testnet-02.midnight.network/api/v1/graphql",
+  node: "https://rpc.testnet-02.midnight.network",
+  // No Preview network option
+}
+```
+
+### My Interpretation
+
+This suggests the tooling and documentation are aligned with each other (both targeting testnet-02), but may not yet reflect the transition to the Preview network that Lace Midnight Preview uses.
+
+I suspect this is simply a timing issue—the SDK and tooling are actively evolving, and updates to align with the Preview network may be in progress. The `create-mn-app` tool itself is well-designed and provides a smooth scaffolding experience; it just needs updated dependencies and endpoints.
+
+This finding doesn't change my overall experience, but it does confirm that the challenges I encountered weren't due to missing an obvious shortcut. A developer using either the manual approach (as I did) or the `create-mn-app` tool would encounter similar version coordination challenges when targeting the Preview network.
+
+I'm sharing this verification in case it's helpful context for the team or for other developers wondering whether to try the scaffolding tool.
+
+---
+
+*Last updated: 2026-01-25 (Session 7 + create-mn-app verification)*
 
 ---
 

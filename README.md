@@ -4,6 +4,8 @@
 >
 > This repository documents one developer's journey attempting to deploy a simple smart contract to the Midnight blockchain. I'm sharing this in the spirit of helpfulness, hoping these observations may be useful to the Midnight team.
 
+*For the complete analysis, see the [Executive Summary](docs/developer-experience-executive-summary.md) (3-min read) or the [Full Developer Experience](docs/my-developer-experience.md).*
+
 ## About This Project
 
 I'm a technical writer with deep experience in developer documentation. I gave myself approximately 8 hours to see how far I could get deploying a simple "Proof of Authorship" contract to Midnight's Preview network.

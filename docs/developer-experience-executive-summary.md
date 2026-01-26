@@ -109,6 +109,7 @@ Areas where I encountered friction (there may be solutions I didn't find):
 | Browser deployment | I couldn't find guidance for Vite/Webpack |
 | DApp Connector API v4 | I found it differs from v3; had to experiment |
 | Migration guide discoverability | I found it late in my process |
+| `create-mn-app` scaffolding | Tested post-hoc; generates testnet-02 config (same challenges) |
 
 ---
 

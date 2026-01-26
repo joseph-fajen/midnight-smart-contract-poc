@@ -1,5 +1,7 @@
 # Product Requirements Document: Midnight Proof of Authorship Contract
 
+> **Note**: This PRD was written at project inception based on official Midnight documentation. For actual outcomes and lessons learned, see the [Developer Experience documentation](docs/developer-experience-executive-summary.md).
+
 ## Overview
 
 A proof-of-concept smart contract deployed on the Midnight blockchain testnet to demonstrate technical capability in blockchain development. This serves as a portfolio piece showing the ability to write, compile, and deploy a Midnight smart contract.
@@ -168,4 +170,4 @@ midnight-smart-contract-poc/
 
 **Author**: Joseph Fajen
 **Created**: 2026-01-23
-**Status**: Draft
+**Status**: Initial Planning (see [docs/](docs/) for outcomes)
