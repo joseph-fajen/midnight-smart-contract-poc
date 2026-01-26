@@ -1,16 +1,8 @@
 # Midnight Smart Contract POC: A Developer Experience Journal
 
-> **Status**: Deployment not achieved after 8+ hours.
->
-> This repository documents one developer's journey attempting to deploy a simple smart contract to the Midnight blockchain. I'm sharing this in the spirit of helpfulness, hoping these observations may be useful to the Midnight team.
+I'm a technical writer with deep experience in developer documentation, though I was new to Midnight. In the spirit of a one-day hackathon, I gave myself approximately 8 hours to deploy a simple "Proof of Authorship" contract to Midnight's Preview network, documenting the experience from a newcomer's perspective.
 
-*For the complete analysis, see the [Executive Summary](docs/developer-experience-executive-summary.md) (3-min read) or the [Full Developer Experience](docs/my-developer-experience.md) (detailed technical journal).*
-
-## About This Project
-
-I'm a technical writer with deep experience in developer documentation. I gave myself approximately 8 hours to deploy a simple "Proof of Authorship" contract to Midnight's Preview network, documenting the experience from a newcomer's perspective.
-
-**The outcome**: I didn't achieve deployment, but I learned a great deal. The [Executive Summary](docs/developer-experience-executive-summary.md) details what worked, where I got stuck, and observations that may be helpful.
+I didn't achieve deployment, but I learned a great deal. The [Executive Summary](docs/developer-experience-executive-summary.md) (3-min read) details what worked, where I got stuck, and observations that may be helpful. The [Full Developer Experience](docs/my-developer-experience.md) provides the complete technical journal.
 
 **Important caveats**:
 - This reflects one developer's 8-hour experience, not a comprehensive evaluation
@@ -120,7 +112,3 @@ npm run dev
 ## Author
 
 Joseph Fajen - January 2026
-
----
-
-*I'm sharing this project in the spirit of friendly collaboration. For detailed observations about the developer experience, see the [documentation](docs/developer-experience-executive-summary.md).*
