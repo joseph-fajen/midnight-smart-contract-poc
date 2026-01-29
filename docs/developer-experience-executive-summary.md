@@ -157,6 +157,34 @@ I offer these observations humbly - documentation is challenging, especially for
 
 ---
 
+## Update: January 29, 2026 — Compatibility Research
+
+After the initial 8-hour session, additional research via Discord and documentation yielded important findings:
+
+### Confirmed Blockers
+
+1. **Browser deployment is not possible with the current toolchain.** A Midnight representative confirmed that no compact-runtime version both matches toolchain 0.26.0 contract output and works as ESM in a browser. This is a known gap, not a misconfiguration on our part.
+
+2. **CLI deployment on Preview is "somewhat experimental."** There is no fully stable, officially supported version combination documented for CLI deployment on Preview network.
+
+3. **Lace Midnight Preview wallet stuck at 0% sync.** As of January 29, 2026, the wallet will not sync, blocking any browser-based approach regardless of version compatibility.
+
+### Official Support Matrix Found
+
+The official [Support Matrix](https://docs.midnight.network/relnotes/support-matrix) documents tested versions for **Testnet_02**. This revealed we were using significantly different SDK versions than what the matrix lists:
+
+- We used Midnight.js **3.0.0-alpha.11** — matrix says **2.1.0**
+- We used Ledger **6.1.0-alpha.6** — matrix says **4.0.0**
+- We used DApp Connector API **v4** — matrix says **3.0.0**
+
+However, the matrix targets Testnet_02, and we are on Preview. It remains unclear whether these are the same network.
+
+### Revised Assessment
+
+The core challenge — deploying a contract to Midnight — appears to be blocked by tooling maturity rather than developer error. The SDK is actively evolving, and the version combinations needed for deployment are not yet stable or documented for Preview network. See the [Compatibility Matrix](./compatibility-matrix.md) for full details.
+
+---
+
 ## Closing Thoughts
 
 In my experience, most of the 8 hours was spent on SDK and configuration challenges rather than the contract itself. The technology underlying Midnight is exciting to me, and I found the Discord community genuinely helpful.

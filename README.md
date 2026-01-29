@@ -9,6 +9,12 @@ I didn't achieve deployment, but I learned a great deal. The [Executive Summary]
 - I may have missed documentation or solutions that would have helped
 - The SDK is actively evolving, and some issues may already be addressed
 
+## Where We Left Off
+
+Active research is tracked in the [Compatibility Matrix](docs/compatibility-matrix.md), which documents the version mismatches blocking deployment and next steps. Start there to pick up where we left off.
+
+**TL;DR**: Browser deployment is confirmed impossible with the current toolchain. CLI deployment is experimental. The official [Support Matrix](https://docs.midnight.network/relnotes/support-matrix) lists different SDK versions than we've been using — investigating whether downgrading resolves the issue is the top priority.
+
 ## Current Status
 
 | Component | Status |
