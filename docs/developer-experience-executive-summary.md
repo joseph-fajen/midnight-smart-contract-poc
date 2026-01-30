@@ -185,12 +185,18 @@ The core challenge — deploying a contract to Midnight — appears to be blocke
 
 ---
 
+## A Note on Discord Security
+
+> **Exercise caution when seeking help on Discord.** Scammers impersonate "Midnight Support" to target developers. Legitimate support will never ask you to enter seed phrases, connect funded wallets to third-party sites, or join private voice calls. If anyone directs you to a website to "restore" or "connect" your wallet, it is a scam.
+
+---
+
 ## Closing Thoughts
 
-In my experience, most of the 8 hours was spent on SDK and configuration challenges rather than the contract itself. The technology underlying Midnight is exciting to me, and I found the Discord community genuinely helpful.
+In my experience, most of the 8+ hours was spent on SDK and configuration challenges rather than the contract itself. The technology underlying Midnight is interesting, and the developer experience is evolving.
 
 I'm sharing this experience in case it's useful. As someone who works in developer documentation, I understand how difficult it is to keep docs current with rapidly evolving software. I hope these observations from a newcomer's perspective might provide a helpful data point.
 
 ---
 
-*Full technical details: [my-developer-experience.md](./my-developer-experience.md) (1600+ lines)*
+*Full technical details: [my-developer-experience.md](./my-developer-experience.md) (1700+ lines)*

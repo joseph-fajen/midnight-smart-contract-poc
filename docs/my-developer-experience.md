@@ -1707,7 +1707,20 @@ I'm sharing this verification in case it's helpful context for the team or for o
 
 ---
 
-*Last updated: 2026-01-25 (Session 7 + create-mn-app verification)*
+*Last updated: 2026-01-30*
+
+---
+
+## Security Warning for Midnight Developers
+
+> **Exercise caution when seeking help on Discord.** Scammers impersonate "Midnight Support" and target developers who are troubleshooting issues. Legitimate Midnight support will never ask you to:
+>
+> - Enter your seed phrase or private key into any website
+> - Connect a funded Cardano mainnet wallet to a third-party tool
+> - Join a private voice call to "troubleshoot" wallet issues
+> - Visit unofficial domains (watch for `.sbs`, `.xyz`, `.top` TLDs)
+>
+> **If anyone directs you to a website to "restore" or "connect" your wallet, it is a scam.**
 
 ---
 

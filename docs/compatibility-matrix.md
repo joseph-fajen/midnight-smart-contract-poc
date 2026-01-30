@@ -67,7 +67,7 @@ On January 29, 2026 we discovered the official [Support Matrix](https://docs.mid
 | Component | Official Matrix | Our package.json | Match? |
 |-----------|----------------|------------------|--------|
 | Compactc | 0.26.0 | 0.26.0 | Yes |
-| compact-runtime | 0.9.0 | 0.9.0 | Yes |
+| compact-runtime | 0.9.0 (matrix) / **0.26.x (team says required)** | 0.9.0 | **No** (need 0.26.x, not on npm) |
 | Ledger | **4.0.0** | **6.1.0-alpha.6** | No |
 | Midnight.js (SDK) | **2.1.0** | **3.0.0-alpha.11** | No |
 | DApp Connector API | **3.0.0** | **^3.0.0 (upgraded to v4)** | No |
@@ -101,39 +101,63 @@ The three mismatches (Ledger, Midnight.js, DApp Connector API) could explain our
 
 ---
 
-## Confirmed by Midnight Team (January 29, 2026)
+## Confirmed by Midnight Team (January 28–29, 2026)
 
-Via Discord, a Midnight representative confirmed the following:
+Via Discord, multiple Midnight representatives confirmed the following:
 
-### Browser deployment is not currently possible with toolchain 0.26.0
+### compact-runtime must match toolchain version (0.26.x)
 
-> There is currently no runtime version that both matches the compiled contract output from toolchain 0.26.0 and works in a browser environment as ESM.
+> "The compatibility matrix in Midnight Docs specifies that @midnight-ntwrk/compact-runtime must be on the same major/minor version (0.26.x) as the compiler." — Midnight Network Team, Jan 29
 
-The two options are: (a) stick to Node.js environments, or (b) upgrade contract compilation to target the newer runtime API, adapting to the breaking changes. Neither option has a documented path.
+This means we need compact-runtime 0.26.x to match toolchain 0.26.0. However, **no 0.26.x version exists on npm**. As of January 29, 2026, the highest published version is 0.14.0. The full list of published versions:
 
-### CLI deployment on Preview is experimental
+```
+0.6.12, 0.6.13, 0.7.0, 0.7.1, 0.8.1, 0.9.0, 0.11.0-rc.1, 0.14.0-rc.0, 0.14.0
+```
 
-> The CLI deployment path using `@midnight-ntwrk/wallet` v5.0.0 and `midnight-js` SDK v3.0.0-alpha.11 is "somewhat experimental on Preview." There isn't a fully stable, officially supported combination documented yet.
+This means we cannot currently obtain the correct runtime version through the public npm registry. It may be unreleased, available through a private registry, or the team's guidance may refer to an internal version numbering.
 
-The suggestion was to align wallet SDK and contracts SDK versions more closely, "often by downgrading or using specific alpha versions that match internal API expectations" — but no specific versions were provided.
+### Browser (ESM) deployment is not supported
 
-### Lace sync issue unresolved
+> "Browser (ESM) support: At present, the runtime is not yet packaged for direct browser execution. Developers attempting ESM builds report failures or incomplete support." — Midnight Network Team, Jan 29
 
-The Midnight rep suggested the 0% sync issue could be related to not having a hardware wallet with Cardano staking history. We consider this unlikely — Lace Midnight Preview syncs with the Midnight blockchain indexer, which is independent of Cardano staking activity. The sync failure more likely indicates a Preview network infrastructure issue or an extension bug.
+This confirms what we discovered empirically: no compact-runtime version works in a browser environment. This is now confirmed by two separate Midnight representatives.
+
+### CLI deployment path exists but requires setup
+
+> "There is a working CLI deployment path that will work perfectly, but you will firstly have to go through the interface process to generate an encrypted node to have that operated on Dapps." — MadisonDev (DEV), Jan 29
+
+The "interface process to generate an encrypted node" is not documented in any material we've found. This may refer to a node setup step beyond what the current tutorials cover.
+
+### Lace sync — hardware wallet recommended
+
+> "Using a hardware wallet in combination with Lace can help resolve these syncing problems because the hardware wallet manages your keys securely and handles transaction signing more efficiently, which can improve the connection and synchronization process." — Midnight Network Support, Jan 28
+
+Official support maintains that a hardware wallet with Cardano (ADA) staking history helps Lace sync. We remain skeptical — Lace Midnight Preview syncs with the Midnight blockchain indexer, not the Cardano chain — but this is the official position from two separate support interactions.
 
 ---
 
 ## What We Need Answered
 
-1. **Are Testnet_02 and Preview the same network?** The official support matrix targets Testnet_02. Our Lace wallet and endpoints use Preview (`preview.midnight.network`). If these are different networks, the matrix versions may not apply.
+### Answered (partially)
 
-2. **Should we use Midnight.js 2.1.0 instead of 3.0.0-alpha.11?** The matrix lists 2.1.0. We used 3.0.0-alpha.11 based on npm availability and what appeared to be the latest. If 2.1.0 is correct, our entire SDK layer needs to be downgraded.
+1. ~~**What compact-runtime version is compatible with toolchain 0.26.0?**~~ **Answered**: Must be 0.26.x, but no 0.26.x version is published on npm. **New question**: Where do we obtain compact-runtime 0.26.x?
 
-3. **Should we use Ledger 4.0.0 instead of 6.1.0-alpha.6?** Same question — the matrix says 4.0.0 but we used a much newer alpha.
+2. ~~**Is browser deployment possible?**~~ **Answered**: No. Runtime is not packaged for browser/ESM execution. Confirmed by two Midnight reps.
 
-4. **What specific alpha versions of the SDK should be used together for CLI deployment on Preview?** The Midnight team acknowledged version alignment is needed but did not specify which versions.
+3. ~~**Is there a working CLI deployment path?**~~ **Answered**: Yes, but requires an "interface process to generate an encrypted node." **New question**: What is this process and where is it documented?
 
-5. **Why is Lace Midnight Preview stuck at 0% sync?** As of January 29, 2026, the wallet will not sync. This blocks any browser-based deployment path regardless of version compatibility.
+4. ~~**Why is Lace stuck at 0% sync?**~~ **Partially answered**: Official support recommends a hardware wallet with Cardano staking history. We consider this explanation unlikely but have not been able to test it.
+
+### Still Open
+
+5. **Are Testnet_02 and Preview the same network?** The official support matrix targets Testnet_02. Our Lace wallet and endpoints use Preview (`preview.midnight.network`). If these are different networks, the matrix versions may not apply.
+
+6. **Should we use Midnight.js 2.1.0 instead of 3.0.0-alpha.11?** The matrix lists 2.1.0. We used 3.0.0-alpha.11 based on npm availability and what appeared to be the latest.
+
+7. **Where is compact-runtime 0.26.x?** The Midnight team says it must match the compiler at 0.26.x, but the highest version on npm is 0.14.0. Is it available through a private registry, or is it unreleased?
+
+8. **What is the "encrypted node" generation process?** MadisonDev says CLI deployment requires this but provided no documentation link.
 
 See [discord-questions-2026-01-28.md](./discord-questions-2026-01-28.md) for earlier questions posed to the Midnight team.
 
@@ -141,27 +165,29 @@ See [discord-questions-2026-01-28.md](./discord-questions-2026-01-28.md) for ear
 
 ## Next Steps
 
-1. **Clarify Testnet_02 vs. Preview.** This is the highest-priority question. If they are the same network, downgrading to the official support matrix versions (Midnight.js 2.1.0, Ledger 4.0.0, DApp Connector API 3.0.0) is the obvious next move. Ask on Discord.
+1. **Find compact-runtime 0.26.x.** The Midnight team says this version is required but it's not on npm. Ask on Discord where to obtain it, or check if there's a private/scoped npm registry.
 
-2. **Try the official matrix versions on the CLI path.** If Testnet_02 and Preview are confirmed to be the same (or close enough), downgrade `package.json` to match the support matrix and attempt CLI deployment. This bypasses the browser/ESM blocker entirely.
+2. **Clarify the "encrypted node" setup for CLI deployment.** MadisonDev confirmed CLI works but mentioned a prerequisite step. Get documentation or instructions for this process.
 
-3. **Monitor Lace wallet sync.** Check back periodically — if it starts syncing, the Preview network is healthy. If it remains stuck, report it as a separate issue on Discord.
+3. **Clarify Testnet_02 vs. Preview.** Still unanswered. If they are the same network, the official support matrix versions apply directly.
 
-4. **Follow up on Discord with specific version question.** Ask whether anyone has successfully deployed a contract on Preview recently, and if so, what exact package versions they used.
+4. **Try the official matrix versions on the CLI path** once we have the correct compact-runtime. Downgrade `package.json` to Midnight.js 2.1.0, Ledger 4.0.0, and compact-runtime 0.26.x.
 
 ---
 
 ## Key Learnings (January 29, 2026 session)
 
-1. **Browser deployment is confirmed impossible** with the current toolchain (0.26.0). No compact-runtime version both matches toolchain 0.26.0 output and works as ESM in a browser. Confirmed by Midnight rep.
+1. **Browser deployment is confirmed impossible** with the current toolchain (0.26.0). Runtime is not packaged for browser/ESM execution. Confirmed by two separate Midnight representatives.
 
-2. **CLI deployment is acknowledged as experimental** on Preview, with no documented stable version combination.
+2. **We have been using the wrong compact-runtime version.** The Midnight team states compact-runtime must be 0.26.x to match toolchain 0.26.0. We used 0.9.0. However, no 0.26.x version exists on npm — the highest published is 0.14.0.
 
-3. **We may have been using the wrong SDK versions.** The official support matrix lists Midnight.js 2.1.0 and Ledger 4.0.0; we used 3.0.0-alpha.11 and 6.1.0-alpha.6 respectively. These are major version discrepancies that could explain deployment failures.
+3. **CLI deployment is confirmed viable** by MadisonDev (DEV role), but requires an undocumented "encrypted node" generation step.
 
-4. **Lace Midnight Preview wallet is stuck at 0% sync** as of January 29, 2026. Cause unknown — blocks any browser-based deployment regardless of version compatibility.
+4. **We may have been using the wrong SDK versions.** The official support matrix lists Midnight.js 2.1.0 and Ledger 4.0.0; we used 3.0.0-alpha.11 and 6.1.0-alpha.6 respectively. These are major version discrepancies that could explain deployment failures.
 
-5. **Some Discord support responses were not applicable.** The suggested "Developer tab" does not exist in Lace Midnight Preview. The "hardware wallet with Cardano staking history" suggestion for sync issues is technically unlikely to be relevant.
+5. **Lace Midnight Preview wallet is stuck at 0% sync** as of January 29, 2026. Official support recommends a hardware wallet with Cardano staking history. We remain skeptical but have not tested this.
+
+6. **Some Discord support responses were not applicable.** The suggested "Developer tab" does not exist in Lace Midnight Preview.
 
 ---
 
