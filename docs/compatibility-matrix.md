@@ -2,9 +2,54 @@
 
 > **Purpose**: Document the complete set of tools, SDKs, and versions required for a working deployment pipeline on Midnight Preview network. This is the document we wish existed in the official docs.
 >
-> **Status**: In progress — official support matrix found, but key discrepancies remain unresolved.
+> **Status**: Resolved with Ledger 7.0 upgrade (February 2026)
 >
-> **Last updated**: January 29, 2026
+> **Last updated**: February 6, 2026
+
+---
+
+## RESOLVED: Ledger 7.0 (February 2026)
+
+The version compatibility issues documented below have been resolved with Ledger 7.0.
+
+### Working Version Matrix
+
+| Component | Version |
+|-----------|---------|
+| Compact version manager | 0.4.0 |
+| Compact compiler | 0.28.0 |
+| Language pragma | >= 0.20 |
+| compact-runtime | 0.14.0 |
+| compact-js | 2.4.0 |
+| ledger-v7 | 7.0.0 |
+| midnight-js-* | 3.0.0 |
+| wallet-sdk-facade | 1.0.0 |
+| wallet-sdk-hd | 3.0.0 |
+| wallet-sdk-shielded | 1.0.0 |
+| wallet-sdk-dust-wallet | 1.0.0 |
+| wallet-sdk-unshielded-wallet | 1.0.0 |
+| wallet-sdk-address-format | 3.0.0 |
+| Proof Server Docker | 7.0.0 (`midnightntwrk/proof-server:7.0.0 -v`) |
+
+### Key Changes from Previous Versions
+
+- **Wallet SDK replaced**: `WalletBuilder` → `WalletFacade` + 3 sub-wallets (shielded, unshielded, dust)
+- **signRecipe bug**: Must implement manual signing workaround (see deploy.ts)
+- **DUST registration**: Required before deployment — NIGHT UTXOs must be registered for dust generation
+- **Token lookup**: `unshieldedToken().raw` from ledger-v7 (not `nativeToken()` from zswap)
+- **Proof server**: No `--network` flag needed with 7.0.0, use `-v` only
+- **CompiledContract pattern**: Use `CompiledContract.make().pipe(withVacantWitnesses, withCompiledFileAssets)` from `@midnight-ntwrk/compact-js`
+
+### References
+
+- [Migration Guide](https://github.com/midnightntwrk/example-counter/blob/main/MIGRATION_GUIDE.md)
+- [Example Counter](https://github.com/midnightntwrk/example-counter)
+
+---
+
+## Previous Blockers (Historical)
+
+The section below documents the blockers we encountered before the Ledger 7.0 upgrade.
 
 ---
 
