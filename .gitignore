@@ -11,6 +11,9 @@ contracts/managed/
 *.log
 .DS_Store
 
+# IDE/tool settings
+.claude/
+
 # Private state storage
 *-private-state/
 
